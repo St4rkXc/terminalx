@@ -3,7 +3,7 @@
 export type Interval = '1m' | '5m' | '15m' | '30m' | '1h' | '4h' | '1d' | '1w';
 export type ChartType = 'candlestick' | 'line' | 'bar' | 'area';
 export type Exchange = 'binance' | 'polygon';
-export type TabType = 'dashboard' | 'charts';
+export type TabType = 'dashboard' | 'charts' | 'testing';
 export type WorkspaceTemplate = 'multi' | 'compare' | 'focused';
 export type AssetMode = 'stocks' | 'crypto';
 

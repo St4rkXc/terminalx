@@ -2,7 +2,6 @@
 import MarketOverview from "./MarketOverview.vue";
 import OrderBook from "./OrderBook.vue";
 import NewsFeed from "./NewsFeed.vue";
-import EconomicCalendar from "./EconomicCalendar.vue";
 import { useSettingsStore } from "../../stores/settings";
 
 const settings = useSettingsStore();
@@ -15,7 +14,7 @@ const settings = useSettingsStore();
       <MarketOverview />
       <OrderBook :symbol="settings.orderBookSymbol" asset-mode="crypto" :allow-mode-switch="true" />
       <NewsFeed />
-      <EconomicCalendar />
+      <OrderBook :symbol="settings.stockOrderBookSymbol" asset-mode="stocks" :allow-mode-switch="true" />
     </div>
   </div>
 </template>
