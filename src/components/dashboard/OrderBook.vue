@@ -5,6 +5,12 @@ import { wsManager } from '../../composables/useWebSocketManager';
 import { fetchWithRetry } from '../../utils/fetchRetry';
 import { AssetMode } from '../../types';
 
+// Track the stream name we are actually subscribed to so cleanup
+// always unsubscribes the correct stream regardless of later prop changes.
+let activeStream: string | null = null;
+// Debounce timer for the symbol/mode watcher
+let setupDebounce: ReturnType<typeof setTimeout> | null = null;
+
 interface BookRow {
   price: number;
   amount: number;
@@ -184,11 +190,28 @@ const handleDepthMessage = (data: any) => {
   }
 };
 
+const cleanupFeeds = () => {
+  if (pollInterval) {
+    clearInterval(pollInterval);
+    pollInterval = null;
+  }
+  if (simInterval) {
+    clearInterval(simInterval);
+    simInterval = null;
+  }
+  // Always unsubscribe using the stream name we actually subscribed with,
+  // not the current prop value (which may have already changed).
+  if (activeStream) {
+    wsManager.unsubscribe(activeStream, handleDepthMessage);
+    activeStream = null;
+  }
+};
+
 const setupFeeds = () => {
   cleanupFeeds();
-  bids.value = [];
-  asks.value = [];
-  isLoading.value = true;
+  // Do NOT clear bids/asks here — keep stale data visible while the new
+  // feed initialises so the UI never flashes blank.
+  isLoading.value = bids.value.length === 0 && asks.value.length === 0;
 
   if (currentAssetMode.value === 'stocks') {
     symbolInput.value = activeSymbol.value;
@@ -201,22 +224,8 @@ const setupFeeds = () => {
     }
   } else {
     const stream = `${currentSymbol.value.toLowerCase()}@depth20@100ms`;
+    activeStream = stream;
     wsManager.subscribe(stream, handleDepthMessage);
-  }
-};
-
-const cleanupFeeds = () => {
-  if (pollInterval) {
-    clearInterval(pollInterval);
-    pollInterval = null;
-  }
-  if (simInterval) {
-    clearInterval(simInterval);
-    simInterval = null;
-  }
-  if (currentAssetMode.value === 'crypto') {
-    const stream = `${currentSymbol.value.toLowerCase()}@depth20@100ms`;
-    wsManager.unsubscribe(stream, handleDepthMessage);
   }
 };
 
@@ -225,13 +234,20 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  if (setupDebounce) clearTimeout(setupDebounce);
   cleanupFeeds();
 });
 
+// Debounced watcher — absorbs rapid tab-switch changes (e.g. Compare tab
+// switching selectedChartIndex) so we only rebuild once per gesture.
 watch(
-  () => [currentAssetMode.value, currentSymbol.value, settings.finnhubApiKey],
+  () => [currentAssetMode.value, currentSymbol.value, settings.finnhubApiKey] as const,
   () => {
-    setupFeeds();
+    if (setupDebounce) clearTimeout(setupDebounce);
+    setupDebounce = setTimeout(() => {
+      setupDebounce = null;
+      setupFeeds();
+    }, 120);
   }
 );
 
