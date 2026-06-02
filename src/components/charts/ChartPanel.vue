@@ -1,6 +1,6 @@
 <!-- src/components/charts/ChartPanel.vue -->
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
+import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue';
 import { useWorkspaceStore } from '../../stores/workspace';
 import { useSettingsStore } from '../../stores/settings';
 import { useLightweightChart } from '../../composables/useLightweightChart';
@@ -54,7 +54,9 @@ const { initChart, destroyChart, chartInstance } = useLightweightChart();
 let mainSeries: any = null;
 let volumeSeries: any = null;
 let stockIntervalTimer: any = null;
-let currentRequestId = 0;
+let activeToken: symbol | null = null;
+let currentStreamName: string | null = null;
+let pendingSetup = false;
 
 const getFinnhubResolution = (interval: string): string => {
   switch (interval) {
@@ -112,6 +114,7 @@ const prevClose = ref<number | null>(null);
 
 // WebSocket real-time subscription callback
 const handleWsMessage = (data: any) => {
+  if (!mainSeries) return;
   if (!data || !data.k) return;
   const kline = data.k;
   const price = parseFloat(kline.c);
@@ -145,8 +148,18 @@ const handleWsMessage = (data: any) => {
 const setupChartFeed = async () => {
   if (!chartContainer.value) return;
   
-  const requestId = ++currentRequestId;
-  
+  const token = Symbol();
+  activeToken = token;
+
+  const snap = {
+    symbol: panel.value.symbol,
+    interval: panel.value.interval,
+    chartType: panel.value.chartType,
+    showVolume: panel.value.showVolume,
+  } as const;
+
+  const isStale = () => token !== activeToken || panel.value.symbol !== snap.symbol;
+
   isLoading.value = true;
   isError.value = false;
   isKeyMissing.value = false;
@@ -202,7 +215,7 @@ const setupChartFeed = async () => {
       });
     }
 
-    if (requestId !== currentRequestId) return;
+    if (isStale()) return;
 
     // 5. Load historical data depending on Asset Mode
     let history: ChartBar[] = [];
@@ -211,7 +224,7 @@ const setupChartFeed = async () => {
       isWaitingForQueue.value = true;
       
       await polygonQueue.add(async () => {
-        if (requestId !== currentRequestId) return;
+        if (isStale()) return;
         isWaitingForQueue.value = false;
         const multiplier = getPolygonMultiplier(panel.value.interval);
         const timespan = getPolygonTimespan(panel.value.interval);
@@ -221,9 +234,9 @@ const setupChartFeed = async () => {
         
         const url = `https://api.polygon.io/v2/aggs/ticker/${panel.value.symbol}/range/${multiplier}/${timespan}/${from}/${to}?adjusted=true&sort=asc&apiKey=${settingsStore.polygonApiKey}`;
         const res = await fetchWithRetry(url);
-        if (requestId !== currentRequestId) return;
+        if (isStale()) return;
         const data = await res.json();
-        if (requestId !== currentRequestId) return;
+        if (isStale()) return;
         
         if (data.status === 'OK' && data.results && data.results.length > 0) {
           history = data.results.map((r: any) => ({
@@ -243,7 +256,7 @@ const setupChartFeed = async () => {
         }
       });
 
-      if (requestId !== currentRequestId) return;
+      if (isStale()) return;
 
       if (isUnsupportedSymbol.value || !history.length) {
         isLoading.value = false;
@@ -252,8 +265,11 @@ const setupChartFeed = async () => {
     } else {
       // Crypto Mode
       history = await fetchHistoricalKlines(panel.value.symbol, panel.value.interval);
-      if (requestId !== currentRequestId) return;
+      if (isStale()) return;
     }
+
+    if (isStale()) return;
+    if (!mainSeries) return;
 
     if (history.length > 0) {
       const mainData = history.map((h) => ({
@@ -284,14 +300,14 @@ const setupChartFeed = async () => {
     // 6. Connect real-time updates
     if (assetMode.value === 'stocks') {
       const fetchStockTick = async () => {
-        if (requestId !== currentRequestId) return;
+        if (isStale()) return;
         if (!settingsStore.finnhubApiKey) return;
         try {
           const url = `https://finnhub.io/api/v1/quote?symbol=${panel.value.symbol}&token=${settingsStore.finnhubApiKey}`;
           const tickRes = await fetchWithRetry(url);
-          if (requestId !== currentRequestId) return;
+          if (isStale()) return;
           const tickData = await tickRes.json();
-          if (requestId !== currentRequestId) return;
+          if (isStale()) return;
           if (tickData.c) {
             const price = tickData.c;
             lastPrice.value = price;
@@ -318,12 +334,13 @@ const setupChartFeed = async () => {
     } else {
       // Crypto WebSocket
       const streamName = `${panel.value.symbol.toLowerCase()}@kline_${panel.value.interval}`;
+      currentStreamName = streamName;
       wsManager.subscribe(streamName, handleWsMessage);
     }
 
     isLoading.value = false;
   } catch (err: any) {
-    if (requestId !== currentRequestId) return;
+    if (isStale()) return;
     console.error('[ChartPanel] Setup failed:', err);
     if (err.message?.includes('status: 403')) {
       isTierRestricted.value = true;
@@ -335,13 +352,14 @@ const setupChartFeed = async () => {
 };
 
 const cleanupFeed = () => {
+  activeToken = null;
   if (stockIntervalTimer) {
     clearInterval(stockIntervalTimer);
     stockIntervalTimer = null;
   }
-  if (assetMode.value === 'crypto') {
-    const streamName = `${panel.value.symbol.toLowerCase()}@kline_${panel.value.interval}`;
-    wsManager.unsubscribe(streamName, handleWsMessage);
+  if (currentStreamName) {
+    wsManager.unsubscribe(currentStreamName, handleWsMessage);
+    currentStreamName = null;
   }
   destroyChart();
   mainSeries = null;
@@ -370,12 +388,18 @@ watch(
     panel.value.chartType,
     panel.value.showVolume,
     assetMode.value,
-    settingsStore.finnhubApiKey
+    settingsStore.finnhubApiKey,
   ],
   () => {
-    cleanupFeed();
-    setupChartFeed();
-  }
+    if (pendingSetup) return;
+    pendingSetup = true;
+    nextTick(() => {
+      pendingSetup = false;
+      cleanupFeed();
+      setupChartFeed();
+    });
+  },
+  { flush: 'post' }
 );
 
 watch(isFullscreen, () => {
