@@ -51,6 +51,7 @@ const { initChart, destroyChart, chartInstance } = useLightweightChart();
 let mainSeries: any = null;
 let volumeSeries: any = null;
 let stockIntervalTimer: any = null;
+let currentRequestId = 0;
 
 const getFinnhubResolution = (interval: string): string => {
   switch (interval) {
@@ -140,6 +141,9 @@ const handleWsMessage = (data: any) => {
 
 const setupChartFeed = async () => {
   if (!chartContainer.value) return;
+  
+  const requestId = ++currentRequestId;
+  
   isLoading.value = true;
   isError.value = false;
   isKeyMissing.value = false;
@@ -195,6 +199,8 @@ const setupChartFeed = async () => {
       });
     }
 
+    if (requestId !== currentRequestId) return;
+
     // 5. Load historical data depending on Asset Mode
     let history: ChartBar[] = [];
     
@@ -202,6 +208,7 @@ const setupChartFeed = async () => {
       isWaitingForQueue.value = true;
       
       await polygonQueue.add(async () => {
+        if (requestId !== currentRequestId) return;
         isWaitingForQueue.value = false;
         const multiplier = getPolygonMultiplier(panel.value.interval);
         const timespan = getPolygonTimespan(panel.value.interval);
@@ -211,7 +218,9 @@ const setupChartFeed = async () => {
         
         const url = `https://api.polygon.io/v2/aggs/ticker/${panel.value.symbol}/range/${multiplier}/${timespan}/${from}/${to}?adjusted=true&sort=asc&apiKey=${settingsStore.polygonApiKey}`;
         const res = await fetchWithRetry(url);
+        if (requestId !== currentRequestId) return;
         const data = await res.json();
+        if (requestId !== currentRequestId) return;
         
         if (data.status === 'OK' && data.results && data.results.length > 0) {
           history = data.results.map((r: any) => ({
@@ -231,6 +240,8 @@ const setupChartFeed = async () => {
         }
       });
 
+      if (requestId !== currentRequestId) return;
+
       if (isUnsupportedSymbol.value || !history.length) {
         isLoading.value = false;
         return;
@@ -238,6 +249,7 @@ const setupChartFeed = async () => {
     } else {
       // Crypto Mode
       history = await fetchHistoricalKlines(panel.value.symbol, panel.value.interval);
+      if (requestId !== currentRequestId) return;
     }
 
     if (history.length > 0) {
@@ -269,11 +281,14 @@ const setupChartFeed = async () => {
     // 6. Connect real-time updates
     if (assetMode.value === 'stocks') {
       const fetchStockTick = async () => {
+        if (requestId !== currentRequestId) return;
         if (!settingsStore.finnhubApiKey) return;
         try {
           const url = `https://finnhub.io/api/v1/quote?symbol=${panel.value.symbol}&token=${settingsStore.finnhubApiKey}`;
           const tickRes = await fetchWithRetry(url);
+          if (requestId !== currentRequestId) return;
           const tickData = await tickRes.json();
+          if (requestId !== currentRequestId) return;
           if (tickData.c) {
             const price = tickData.c;
             lastPrice.value = price;
@@ -305,6 +320,7 @@ const setupChartFeed = async () => {
 
     isLoading.value = false;
   } catch (err: any) {
+    if (requestId !== currentRequestId) return;
     console.error('[ChartPanel] Setup failed:', err);
     if (err.message?.includes('status: 403')) {
       isTierRestricted.value = true;
