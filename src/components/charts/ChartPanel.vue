@@ -8,15 +8,18 @@ import { fetchHistoricalKlines, ChartBar } from '../../composables/useBinanceKli
 import { wsManager } from '../../composables/useWebSocketManager';
 import { fetchWithRetry } from '../../utils/fetchRetry';
 import { candleSeriesOptions, volumeSeriesOptions } from '../../utils/chartTheme';
-import { Maximize2, Minimize2, Settings as SettingsIcon, X, BarChart2 } from 'lucide-vue-next';
+import { Maximize2, Minimize2, Settings as SettingsIcon, X, BarChart2, GripVertical } from 'lucide-vue-next';
 import ChartConfig from './ChartConfig.vue';
 import { UTCTimestamp, CandlestickSeries, LineSeries, BarSeries, AreaSeries, HistogramSeries } from 'lightweight-charts';
 import { polygonQueue } from '../../utils/requestQueue';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   panelId: string;
   tabId: string;
-}>();
+  draggable?: boolean;
+}>(), {
+  draggable: false
+});
 
 const workspaceStore = useWorkspaceStore();
 const settingsStore = useSettingsStore();
@@ -396,6 +399,10 @@ watch(isFullscreen, () => {
     <!-- Header -->
     <div class="h-8 border-b border-border flex items-center justify-between px-3 text-[10px] select-none bg-black">
       <div class="flex items-center space-x-2">
+        <GripVertical
+          v-if="props.draggable"
+          class="h-3.5 w-3.5 text-zinc-500 hover:text-zinc-300 cursor-grab active:cursor-grabbing mr-0.5 flex-shrink-0"
+        />
         <button
           @click="showConfig = !showConfig"
           class="font-bold text-gray-300 hover:text-white flex items-center space-x-1"

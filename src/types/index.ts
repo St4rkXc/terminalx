@@ -27,6 +27,7 @@ export interface Tab {
   panels: Panel[];
   createdAt: number;
   updatedAt: number;
+  compareSplitPct?: number;
 }
 
 export interface WorkspaceState {
