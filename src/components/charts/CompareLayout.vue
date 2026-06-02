@@ -4,6 +4,8 @@ import { ref, computed } from 'vue';
 import { useWorkspaceStore } from '../../stores/workspace';
 import ChartPanel from './ChartPanel.vue';
 import OrderBook from '../dashboard/OrderBook.vue';
+import draggable from 'vuedraggable';
+import ResizableSplitter from '../ui/ResizableSplitter.vue';
 import { Plus } from 'lucide-vue-next';
 
 const props = defineProps<{
@@ -30,41 +32,81 @@ const orderBookSymbol = computed(() => {
 const addPanel = () => {
   workspaceStore.addPanel(props.tabId);
 };
+
+// Resizing split state
+const containerRef = ref<HTMLElement | null>(null);
+const splitPct = ref<number>(activeTab.value?.compareSplitPct ?? 70);
+
+// Computed CSS values driven by splitPct
+const chartAreaStyle = computed(() => ({ width: `${splitPct.value}%` }));
+const sidebarStyle = computed(() => ({ width: `${100 - splitPct.value}%` }));
+
+const panelsWritable = computed({
+  get() {
+    return panels.value;
+  },
+  set(val) {
+    workspaceStore.reorderPanels(props.tabId, val);
+  }
+});
+
+const onDragEnd = (evt: any) => {
+  if (evt.oldIndex !== undefined && evt.newIndex !== undefined && evt.oldIndex !== evt.newIndex) {
+    workspaceStore.swapPanels(props.tabId, evt.oldIndex, evt.newIndex);
+  }
+};
+
+const onSplitterResize = (deltaX: number) => {
+  if (!containerRef.value) return;
+  const totalW = containerRef.value.clientWidth;
+  if (totalW === 0) return;
+  const deltaPct = (deltaX / totalW) * 100;
+  splitPct.value = Math.min(90, Math.max(10, splitPct.value + deltaPct));
+  const tab = workspaceStore.tabs.find(t => t.id === props.tabId);
+  if (tab) {
+    tab.compareSplitPct = splitPct.value;
+  }
+};
 </script>
 
 <template>
-  <div class="w-full h-[calc(100vh-76px)] bg-black p-1 flex gap-1 font-mono">
+  <div ref="containerRef" class="w-full h-[calc(100vh-76px)] bg-black p-1 flex gap-1 font-mono overflow-hidden">
     <!-- Charts Area (Left Side, 70% width) -->
-    <div class="flex-[7] h-full flex gap-1">
-      <!-- Left Chart Panel (Panel 1) -->
-      <div class="flex-1 h-full overflow-hidden">
-        <ChartPanel v-if="panels[0]" :panel-id="panels[0].id" :tab-id="props.tabId" />
-        <div
-          v-else
-          @click="addPanel"
-          class="h-full border border-dashed border-border bg-black/40 hover:bg-surface/50 hover:border-accent-green cursor-pointer flex flex-col items-center justify-center space-y-2 text-gray-500 hover:text-white transition-all duration-150 rounded"
-        >
-          <Plus class="h-5 w-5 text-accent-green animate-pulse" />
-          <span class="text-[9px] tracking-wider font-semibold uppercase">INITIALIZE CHART 1</span>
-        </div>
-      </div>
-
-      <!-- Right Chart Panel (Panel 2) -->
-      <div class="flex-1 h-full overflow-hidden">
-        <ChartPanel v-if="panels[1]" :panel-id="panels[1].id" :tab-id="props.tabId" />
-        <div
-          v-else
-          @click="addPanel"
-          class="h-full border border-dashed border-border bg-black/40 hover:bg-surface/50 hover:border-accent-green cursor-pointer flex flex-col items-center justify-center space-y-2 text-gray-500 hover:text-white transition-all duration-150 rounded"
-        >
-          <Plus class="h-5 w-5 text-accent-green" />
-          <span class="text-[9px] tracking-wider font-semibold uppercase">INITIALIZE CHART 2</span>
-        </div>
-      </div>
+    <div :style="chartAreaStyle" class="h-full flex-shrink-0 overflow-hidden">
+      <draggable
+        v-model="panelsWritable"
+        item-key="id"
+        class="h-full w-full flex gap-1"
+        handle=".h-8"
+        @end="onDragEnd"
+      >
+        <template #item="{ element }">
+          <div class="flex-1 h-full overflow-hidden">
+            <ChartPanel :panel-id="element.id" :tab-id="props.tabId" :draggable="true" />
+          </div>
+        </template>
+        
+        <template #footer>
+          <div v-if="panels.length < 2" class="flex-1 h-full flex gap-1">
+            <div
+              v-for="n in (2 - panels.length)"
+              :key="n"
+              @click="addPanel"
+              class="flex-1 h-full border border-dashed border-border bg-black/40 hover:bg-surface/50 hover:border-accent-green cursor-pointer flex flex-col items-center justify-center space-y-2 text-gray-500 hover:text-white transition-all duration-150 rounded animate-pulse"
+            >
+              <Plus class="h-5 w-5 text-accent-green" />
+              <span class="text-[9px] tracking-wider font-semibold uppercase">INITIALIZE CHART {{ panels.length + n }}</span>
+            </div>
+          </div>
+        </template>
+      </draggable>
     </div>
 
+    <!-- Splitter -->
+    <ResizableSplitter @resize="onSplitterResize" />
+
     <!-- Sidebar Area (Right Side, 30% width) -->
-    <div class="flex-[3] h-full overflow-hidden flex flex-col gap-1.5">
+    <div :style="sidebarStyle" class="h-full overflow-hidden flex flex-col gap-1.5 flex-shrink-0">
       <!-- Interactive Ticker Switcher -->
       <div
         v-if="panels.length > 0"
@@ -77,7 +119,7 @@ const addPanel = () => {
             ? 'bg-panel text-accent-green border border-border shadow' 
             : 'text-gray-500 hover:text-gray-300'"
         >
-          FOLLOW CHART 1: {{ panels[0]?.symbol || 'N/A' }}
+          FOLLOW: {{ panels[0]?.symbol || 'CHART 1' }}
         </button>
         <button
           @click="selectedChartIndex = 1"
@@ -87,7 +129,7 @@ const addPanel = () => {
             : 'text-gray-500 hover:text-gray-300'"
           :disabled="panels.length < 2"
         >
-          FOLLOW CHART 2: {{ panels[1]?.symbol || 'N/A' }}
+          FOLLOW: {{ panels[1]?.symbol || 'CHART 2' }}
         </button>
       </div>
 

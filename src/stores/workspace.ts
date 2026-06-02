@@ -51,6 +51,9 @@ export const useWorkspaceStore = defineStore('workspace', {
         if (!tab.assetMode) {
           tab.assetMode = 'stocks';
         }
+        if (tab.template === 'compare' && tab.compareSplitPct === undefined) {
+          tab.compareSplitPct = 70;
+        }
         return tab;
       });
     },
@@ -239,6 +242,15 @@ export const useWorkspaceStore = defineStore('workspace', {
         }));
         tab.updatedAt = Date.now();
       }
+    },
+    swapPanels(tabId: string, idxA: number, idxB: number): void {
+      const tab = this.tabs.find(t => t.id === tabId);
+      if (!tab || idxA === idxB) return;
+      if (idxA < 0 || idxB < 0 || idxA >= tab.panels.length || idxB >= tab.panels.length) return;
+      // Swap in place then re-assign positions via reorderPanels
+      const copy = [...tab.panels];
+      [copy[idxA], copy[idxB]] = [copy[idxB], copy[idxA]];
+      this.reorderPanels(tabId, copy);
     },
   },
   persist: true,
