@@ -1,264 +1,168 @@
+<!-- src/components/dashboard/TestingView.vue -->
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { watch } from 'vue';
 import { useSettingsStore } from '../../stores/settings';
-import * as Highcharts from 'highcharts/highstock';
+import { useWorkspaceStore } from '../../stores/workspace';
+import OrderBook from './OrderBook.vue';
+import ChartPanel from '../charts/ChartPanel.vue';
+import TradeScatterTape from '../highcharts/TradeScatterTape.vue';
+import CumulativeVolumeDelta from '../highcharts/CumulativeVolumeDelta.vue';
+import MarketSpeedMeter from '../highcharts/MarketSpeedMeter.vue';
+import BlockTradeTracker from '../highcharts/BlockTradeTracker.vue';
+import OrderFlowImbalance from '../highcharts/OrderFlowImbalance.vue';
 
 const settingsStore = useSettingsStore();
-const chartContainer = ref<HTMLElement | null>(null);
-let chart: any = null;
+const workspaceStore = useWorkspaceStore();
 
-// Generate mock stock data for AAPL
-const generateMockStockData = () => {
-  const data = [];
-  let time = Date.UTC(2025, 0, 1);
-  let close = 150;
-  
-  for (let i = 0; i < 500; i++) {
-    const o = close + (Math.random() - 0.5) * 4;
-    const h = o + Math.random() * 3;
-    const l = o - Math.random() * 3;
-    const c = (h + l) / 2 + (Math.random() - 0.5) * 2;
-    const v = Math.floor(Math.random() * 1000000) + 100000;
+// Setup the workspace testing tab panel contract for ChartPanel compatibility
+const initializeTestingTab = () => {
+  const testingTab = workspaceStore.tabs.find((t) => t.id === 'testing');
+  if (testingTab) {
+    testingTab.name = 'Bloomberg Focus View';
+    testingTab.assetMode = 'crypto';
     
-    data.push([
-      time,
-      o,
-      h,
-      l,
-      c,
-      v
-    ]);
-    
-    time += 24 * 3600 * 1000; // Increment 1 day
-    close = c;
-  }
-  return data;
-};
-
-const initHighcharts = () => {
-  if (!chartContainer.value) return;
-  
-  const mockData = generateMockStockData();
-  const ohlc = [];
-  const volume = [];
-  
-  for (let i = 0; i < mockData.length; i += 1) {
-    ohlc.push([
-      mockData[i][0], // the date
-      mockData[i][1], // open
-      mockData[i][2], // high
-      mockData[i][3], // low
-      mockData[i][4]  // close
-    ]);
-
-    volume.push([
-      mockData[i][0], // the date
-      mockData[i][5]  // the volume
-    ]);
-  }
-
-  chart = Highcharts.stockChart(chartContainer.value, {
-    chart: {
-      backgroundColor: '#000000',
-      style: {
-        fontFamily: 'monospace'
-      }
-    },
-    title: {
-      text: 'HIGHCHARTS STOCK DEMO - APPLE INC. (SIMULATED)',
-      style: {
-        color: '#ffffff',
-        fontSize: '12px',
-        fontWeight: 'bold'
-      }
-    },
-    rangeSelector: {
-      selected: 1,
-      buttonTheme: {
-        fill: '#1e1e1e',
-        stroke: '#333333',
-        style: {
-          color: '#888888',
-          fontWeight: 'bold'
-        },
-        states: {
-          hover: {
-            fill: '#333333',
-            style: {
-              color: '#ffffff'
-            }
-          },
-          select: {
-            fill: settingsStore.accentColor,
-            style: {
-              color: '#000000'
-            }
-          }
+    const panelExists = testingTab.panels.some((p) => p.id === 'panel-testing');
+    if (!panelExists) {
+      testingTab.panels = [
+        {
+          id: 'panel-testing',
+          tabId: 'testing',
+          symbol: settingsStore.orderBookSymbol || 'BTCUSDT',
+          exchange: 'binance',
+          interval: '1h',
+          chartType: 'candlestick',
+          position: 0,
+          showVolume: true,
         }
-      },
-      inputBoxBorderColor: '#333333',
-      inputStyle: {
-        backgroundColor: '#1e1e1e',
-        color: '#ffffff'
-      },
-      labelStyle: {
-        color: '#888888'
-      }
-    },
-    yAxis: [{
-      labels: {
-        align: 'right',
-        x: -3,
-        style: {
-          color: '#888888'
-        }
-      },
-      title: {
-        text: 'OHLC',
-        style: {
-          color: '#ffffff'
-        }
-      },
-      height: '60%',
-      lineWidth: 2,
-      gridLineColor: '#1e1e1e',
-      lineColor: '#333333'
-    }, {
-      labels: {
-        align: 'right',
-        x: -3,
-        style: {
-          color: '#888888'
-        }
-      },
-      title: {
-        text: 'Volume',
-        style: {
-          color: '#ffffff'
-        }
-      },
-      top: '65%',
-      height: '35%',
-      offset: 0,
-      lineWidth: 2,
-      gridLineColor: '#1e1e1e',
-      lineColor: '#333333'
-    }],
-    xAxis: {
-      gridLineColor: '#1e1e1e',
-      lineColor: '#333333',
-      labels: {
-        style: {
-          color: '#888888'
-        }
-      }
-    },
-    series: [{
-      type: 'candlestick',
-      name: 'AAPL',
-      data: ohlc,
-      color: '#ff4444',
-      upColor: settingsStore.accentColor,
-      lineColor: '#ff4444',
-      upLineColor: settingsStore.accentColor,
-      dataGrouping: {
-        units: [[
-          'week',                         // unit name
-          [1]                             // allowed multiples
-        ], [
-          'month',
-          [1, 2, 3, 4, 6]
-        ]]
-      }
-    }, {
-      type: 'column',
-      name: 'Volume',
-      data: volume,
-      yAxis: 1,
-      color: settingsStore.accentColor + '80',
-      dataGrouping: {
-        units: [[
-          'week',
-          [1]
-        ], [
-          'month',
-          [1, 2, 3, 4, 6]
-        ]]
-      }
-    }],
-    navigator: {
-      outlineColor: '#333333',
-      maskFill: settingsStore.accentColor + '15',
-      series: {
-        color: settingsStore.accentColor,
-        fillOpacity: 0.05
-      },
-      xAxis: {
-        gridLineColor: '#1e1e1e',
-        labels: {
-          style: {
-            color: '#888888'
-          }
-        }
-      }
-    },
-    scrollbar: {
-      barBackgroundColor: '#1e1e1e',
-      barBorderColor: '#333333',
-      buttonBackgroundColor: '#1e1e1e',
-      buttonBorderColor: '#333333',
-      buttonArrowColor: '#888888',
-      trackBackgroundColor: '#000000',
-      trackBorderColor: '#1e1e1e'
-    },
-    credits: {
-      enabled: false
-    },
-    plotOptions: {
-      candlestick: {
-        shadow: false
-      }
+      ];
     }
-  });
+  }
 };
 
-onMounted(() => {
-  initHighcharts();
-});
+// Run initialization immediately
+initializeTestingTab();
 
-onUnmounted(() => {
-  if (chart) {
-    chart.destroy();
+// Function to handle symbol selection
+const selectSymbol = (sym: string) => {
+  settingsStore.orderBookSymbol = sym;
+  
+  const testingTab = workspaceStore.tabs.find((t) => t.id === 'testing');
+  if (testingTab && testingTab.panels.length > 0) {
+    testingTab.panels[0].symbol = sym;
+    testingTab.panels[0].exchange = 'binance';
   }
-});
+};
 
-watch(() => settingsStore.accentColor, () => {
-  if (chart) {
-    chart.destroy();
-    initHighcharts();
+// Sync settings change to testing panel
+watch(() => settingsStore.orderBookSymbol, (newSymbol) => {
+  const testingTab = workspaceStore.tabs.find((t) => t.id === 'testing');
+  if (testingTab && testingTab.panels.length > 0) {
+    if (testingTab.panels[0].symbol !== newSymbol) {
+      testingTab.panels[0].symbol = newSymbol;
+    }
   }
 });
 </script>
 
 <template>
-  <div class="h-full w-full bg-black p-4 flex flex-col font-mono text-white">
-    <!-- Header -->
-    <div class="h-10 border-b border-border flex items-center justify-between px-3 bg-black text-xs mb-4">
-      <span class="text-accent-green uppercase font-bold tracking-wider">
-        HIGHCHARTS STOCK TESTING LAB
-      </span>
-      <span class="text-gray-500 font-bold uppercase tracking-wider">
-        [DEMO MODE]
-      </span>
+  <div class="h-[calc(100vh-76px)] w-full bg-[#000000] p-1 flex flex-col font-mono text-white select-none overflow-hidden">
+    <!-- Sub-Header / Tool Bar -->
+    <div class="h-8 border-b border-[#222222] flex items-center justify-between px-2 bg-[#000000] text-[10px] mb-1">
+      <div class="flex items-center gap-3">
+        <span class="text-green-500 font-bold uppercase tracking-wider">
+          BLOOMBERG FOCUS TERMINAL
+        </span>
+        <span class="text-gray-600 font-bold">|</span>
+        <span class="text-amber-500 font-bold uppercase">
+          {{ settingsStore.orderBookSymbol }}
+        </span>
+      </div>
+      
+      <!-- Symbol Quick Buttons -->
+      <div class="flex items-center gap-1">
+        <span class="text-gray-500 mr-2 uppercase text-[8px] tracking-wide">quick keys:</span>
+        <button 
+          v-for="sym in ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'DOGEUSDT', 'XRPUSDT']"
+          :key="sym"
+          @click="selectSymbol(sym)"
+          class="px-1.5 py-0.5 border border-[#333333] hover:border-green-500 hover:text-green-500 text-[9px] rounded font-bold uppercase transition-all duration-100"
+          :class="settingsStore.orderBookSymbol === sym ? 'bg-[#00ff66]/10 border-green-500 text-green-500' : 'text-gray-400 bg-transparent'"
+        >
+          {{ sym.replace('USDT', '') }}
+        </button>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <span class="inline-block w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+        <span class="text-green-500 uppercase font-bold text-[8px] tracking-wide">WEBSOCKET ONLINE</span>
+      </div>
     </div>
-    
-    <!-- Chart Container -->
-    <div class="flex-1 w-full bg-black border border-border rounded relative p-2 overflow-hidden">
-      <div ref="chartContainer" class="w-full h-full"></div>
+
+    <!-- Main Bloomberg Multi-Panel Grid Layout -->
+    <div class="flex-1 min-h-0 w-full flex gap-1">
+      <!-- Left Column: OrderBook.vue (25% width) -->
+      <div class="w-[25%] h-full min-h-0 flex flex-col border border-[#222222] rounded overflow-hidden">
+        <OrderBook 
+          :symbol="settingsStore.orderBookSymbol" 
+          asset-mode="crypto" 
+          :allow-mode-switch="false" 
+          class="h-full w-full"
+        />
+      </div>
+
+      <!-- Center Column: Main Chart and CVD (45% width) -->
+      <div class="w-[45%] h-full flex flex-col gap-1 min-h-0">
+        <!-- Top: TradingView Lightweight ChartPanel -->
+        <div class="flex-[3] min-h-0 overflow-hidden relative border border-[#222222] rounded">
+          <ChartPanel 
+            panel-id="panel-testing" 
+            tab-id="testing" 
+          />
+        </div>
+        <!-- Bottom: Cumulative Volume Delta Chart -->
+        <div class="flex-[2] min-h-0">
+          <CumulativeVolumeDelta 
+            :symbol="settingsStore.orderBookSymbol" 
+            asset-mode="crypto" 
+          />
+        </div>
+      </div>
+
+      <!-- Right Column: Tape Flow & Analytics (30% width) -->
+      <div class="w-[30%] h-full flex flex-col gap-1 min-h-0">
+        <!-- Top Right: Trade Flow Scatter Tape -->
+        <div class="flex-[4] min-h-0">
+          <TradeScatterTape 
+            :symbol="settingsStore.orderBookSymbol" 
+            asset-mode="crypto" 
+          />
+        </div>
+        <!-- Middle Right: Market Speed Spline Chart -->
+        <div class="flex-[3] min-h-0">
+          <MarketSpeedMeter 
+            :symbol="settingsStore.orderBookSymbol" 
+            asset-mode="crypto" 
+          />
+        </div>
+        <!-- Bottom Right Split Row: Order Flow Imbalance and Block Trades -->
+        <div class="flex-[3] min-h-0 flex gap-1">
+          <div class="w-1/2 h-full">
+            <OrderFlowImbalance 
+              :symbol="settingsStore.orderBookSymbol" 
+              asset-mode="crypto" 
+            />
+          </div>
+          <div class="w-1/2 h-full">
+            <BlockTradeTracker 
+              :symbol="settingsStore.orderBookSymbol" 
+              asset-mode="crypto" 
+            />
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-/* Customize scrollbar or highcharts elements if necessary */
 </style>
