@@ -45,12 +45,14 @@ const stockSymbols = [
   'QQQ',
 ];
 
+const localAssetMode = ref<'stocks' | 'crypto'>('stocks');
+
 const hasFinnhubKey = computed(() => !!settings.finnhubApiKey);
 
 const fetchTickers = async () => {
   isError.value = false;
   
-  if (settings.assetMode === 'stocks') {
+  if (localAssetMode.value === 'stocks') {
     if (!hasFinnhubKey.value) {
       tickers.value = [];
       isLoading.value = false;
@@ -104,7 +106,7 @@ const fetchTickers = async () => {
 const setupTimer = () => {
   if (timer) clearInterval(timer);
   // Original polling rates: 20s for Stocks, 5s for Crypto
-  const interval = settings.assetMode === 'stocks' ? 20000 : 5000;
+  const interval = localAssetMode.value === 'stocks' ? 20000 : 5000;
   timer = setInterval(fetchTickers, interval);
 };
 
@@ -119,7 +121,7 @@ onUnmounted(() => {
 
 // Watch mode changes to immediately reload
 watch(
-  () => [settings.assetMode, settings.finnhubApiKey],
+  () => [localAssetMode.value, settings.finnhubApiKey],
   () => {
     isLoading.value = true;
     fetchTickers();
@@ -141,11 +143,30 @@ const formatVol = (volStr: string) => {
   <div class="h-full w-full bg-panel border border-border flex flex-col font-mono text-xs select-none">
     <!-- Panel Header -->
     <div class="h-8 border-b border-border flex items-center justify-between px-3 bg-black">
-      <span class="text-[10px] text-accent-green uppercase font-bold tracking-wider">
-        MARKET MONITOR [{{ settings.assetMode.toUpperCase() }}]
-      </span>
+      <div class="flex items-center space-x-2">
+        <span class="text-[10px] text-accent-green uppercase font-bold tracking-wider mr-2">
+          MARKET MONITOR
+        </span>
+        <!-- Local Switcher -->
+        <div class="flex items-center bg-surface border border-border rounded p-0.5 space-x-0.5 text-[8px] font-bold">
+          <button
+            @click="localAssetMode = 'stocks'"
+            class="px-1.5 py-0.5 rounded transition-all select-none"
+            :class="localAssetMode === 'stocks' ? 'bg-black text-accent-green border border-border shadow' : 'text-gray-500 hover:text-gray-300'"
+          >
+            STOCKS
+          </button>
+          <button
+            @click="localAssetMode = 'crypto'"
+            class="px-1.5 py-0.5 rounded transition-all select-none"
+            :class="localAssetMode === 'crypto' ? 'bg-black text-accent-green border border-border shadow' : 'text-gray-500 hover:text-gray-300'"
+          >
+            CRYPTO
+          </button>
+        </div>
+      </div>
       <span class="text-[9px] text-gray-600">
-        POLL: {{ settings.assetMode === 'stocks' ? '20s' : '5s' }}
+        POLL: {{ localAssetMode === 'stocks' ? '20s' : '5s' }}
       </span>
     </div>
 
@@ -153,7 +174,7 @@ const formatVol = (volStr: string) => {
     <div class="flex-1 overflow-y-auto relative">
       <!-- Finnhub Key Missing Warning in Stock Mode -->
       <div
-        v-if="settings.assetMode === 'stocks' && !hasFinnhubKey"
+        v-if="localAssetMode === 'stocks' && !hasFinnhubKey"
         class="absolute inset-0 bg-black/45 flex flex-col items-center justify-center p-4 text-center space-y-2 text-[10px] text-gray-500"
       >
         <span>FINNHUB API KEY REQUIRED FOR STOCK PRICES</span>
@@ -191,7 +212,7 @@ const formatVol = (volStr: string) => {
           >
             <!-- Asset -->
             <td class="py-2 px-3 font-bold text-gray-300">
-              <template v-if="settings.assetMode === 'crypto'">
+              <template v-if="localAssetMode === 'crypto'">
                 {{ ticker.symbol.replace('USDT', '') }}
                 <span class="text-gray-600 text-[8px] font-medium">/USDT</span>
               </template>

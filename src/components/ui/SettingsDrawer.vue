@@ -3,7 +3,7 @@
 import { useSettingsStore } from '../../stores/settings';
 import { X } from 'lucide-vue-next';
 
-const props = defineProps<{
+defineProps<{
   isOpen: boolean;
 }>();
 

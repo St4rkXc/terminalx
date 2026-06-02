@@ -9,7 +9,7 @@ const app = createApp(App);
 
 // Explicitly enable devtools in development
 if (import.meta.env.DEV) {
-  app.config.devtools = true;
+  (app.config as any).devtools = true;
 }
 
 const pinia = createPinia();

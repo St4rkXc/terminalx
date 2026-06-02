@@ -12,6 +12,7 @@ class WebSocketManager {
   private reconnectTimeout: any = null;
   private reconnectDelay = 1000;
   private maxReconnectDelay = 30000;
+  private closeTimeout: any = null;
 
   constructor() {
     // Prevent multiple instances
@@ -93,6 +94,11 @@ class WebSocketManager {
   public subscribe(stream: string, callback: MessageCallback) {
     const normalizedStream = stream.toLowerCase();
     
+    if (this.closeTimeout) {
+      clearTimeout(this.closeTimeout);
+      this.closeTimeout = null;
+    }
+    
     if (!this.subscriptions.has(normalizedStream)) {
       this.subscriptions.set(normalizedStream, new Set());
       
@@ -136,9 +142,15 @@ class WebSocketManager {
       }
     }
 
-    // If no more subscriptions are active, we can optionally close the socket to save resources
+    // If no more subscriptions are active, optionally close socket with 5s delay to prevent connection thrashing
     if (this.subscriptions.size === 0 && this.ws) {
-      this.ws.close();
+      if (this.closeTimeout) clearTimeout(this.closeTimeout);
+      this.closeTimeout = setTimeout(() => {
+        if (this.subscriptions.size === 0 && this.ws) {
+          console.log('[WS Manager] Closing idle connection');
+          this.ws.close();
+        }
+      }, 5000);
     }
   }
 }

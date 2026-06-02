@@ -17,9 +17,6 @@ const store = useWorkspaceStore();
 
 const searchSymbol = ref(props.panel.symbol);
 
-import { useSettingsStore } from '../../stores/settings';
-
-const settingsStore = useSettingsStore();
 
 const popularCrypto = [
   'BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 
@@ -32,7 +29,8 @@ const popularStocks = [
 ];
 
 const popularSymbols = computed(() => {
-  return settingsStore.assetMode === 'stocks' ? popularStocks : popularCrypto;
+  const tab = store.tabs.find((t) => t.id === props.panel.tabId);
+  return tab?.assetMode === 'stocks' ? popularStocks : popularCrypto;
 });
 
 const filteredSymbols = computed(() => {

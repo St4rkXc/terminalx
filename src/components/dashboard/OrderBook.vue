@@ -1,15 +1,28 @@
-<!-- src/components/dashboard/OrderBook.vue -->
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
 import { useSettingsStore } from '../../stores/settings';
 import { wsManager } from '../../composables/useWebSocketManager';
 import { fetchWithRetry } from '../../utils/fetchRetry';
+import { AssetMode } from '../../types';
 
 interface BookRow {
   price: number;
   amount: number;
   total: number;
 }
+
+const props = withDefaults(
+  defineProps<{
+    symbol: string;
+    assetMode: AssetMode;
+    compact?: boolean;
+    allowModeSwitch?: boolean;
+  }>(),
+  {
+    compact: false,
+    allowModeSwitch: false,
+  }
+);
 
 const settings = useSettingsStore();
 
@@ -19,18 +32,42 @@ const spread = ref(0);
 const spreadPct = ref(0);
 const isLoading = ref(true);
 
-const stockInput = ref(settings.stockOrderBookSymbol);
+const currentAssetMode = ref(props.assetMode);
+const activeSymbol = ref(props.symbol);
+const symbolInput = ref(props.symbol);
+
+// Keep local active symbol & input in sync when props update
+watch(
+  () => [props.symbol, props.assetMode],
+  ([newSym, newMode]) => {
+    activeSymbol.value = newSym as string;
+    symbolInput.value = newSym as string;
+    currentAssetMode.value = newMode as AssetMode;
+  }
+);
+
+// Toggle defaults when switching asset mode locally
+watch(currentAssetMode, (newMode) => {
+  if (props.allowModeSwitch) {
+    const isStocks = newMode === 'stocks';
+    const defaultSym = isStocks ? 'AAPL' : 'BTCUSDT';
+    activeSymbol.value = defaultSym;
+    symbolInput.value = defaultSym;
+  }
+});
 
 const currentSymbol = computed(() => {
-  return settings.assetMode === 'stocks' ? settings.stockOrderBookSymbol : settings.orderBookSymbol;
+  return activeSymbol.value;
 });
 
 const hasFinnhubKey = computed(() => !!settings.finnhubApiKey);
 
-const updateStockSymbol = () => {
-  const sym = stockInput.value.trim().toUpperCase();
+const maxRows = computed(() => (props.compact ? 8 : 15));
+
+const updateSymbol = () => {
+  const sym = symbolInput.value.trim().toUpperCase();
   if (sym.length > 0) {
-    settings.updateSettings({ stockOrderBookSymbol: sym });
+    activeSymbol.value = sym;
   }
 };
 
@@ -62,7 +99,7 @@ const generateInitialOrderBook = (price: number) => {
   // Generate asks (increasing)
   let askAccum = 0;
   const processedAsks: BookRow[] = [];
-  for (let i = 1; i <= 15; i++) {
+  for (let i = 1; i <= maxRows.value; i++) {
     const askPrice = price + i * tickSize;
     const amount = Math.random() * 500 + 10;
     askAccum += amount;
@@ -73,7 +110,7 @@ const generateInitialOrderBook = (price: number) => {
   // Generate bids (decreasing)
   let bidAccum = 0;
   const processedBids: BookRow[] = [];
-  for (let i = 1; i <= 15; i++) {
+  for (let i = 1; i <= maxRows.value; i++) {
     const bidPrice = price - i * tickSize;
     const amount = Math.random() * 500 + 10;
     bidAccum += amount;
@@ -126,7 +163,7 @@ const handleDepthMessage = (data: any) => {
   isLoading.value = false;
 
   let bidAccum = 0;
-  bids.value = data.bids.slice(0, 15).map((b: [string, string]) => {
+  bids.value = data.bids.slice(0, maxRows.value).map((b: [string, string]) => {
     const price = parseFloat(b[0]);
     const amount = parseFloat(b[1]);
     bidAccum += amount;
@@ -134,7 +171,7 @@ const handleDepthMessage = (data: any) => {
   });
 
   let askAccum = 0;
-  asks.value = data.asks.slice(0, 15).map((a: [string, string]) => {
+  asks.value = data.asks.slice(0, maxRows.value).map((a: [string, string]) => {
     const price = parseFloat(a[0]);
     const amount = parseFloat(a[1]);
     askAccum += amount;
@@ -153,8 +190,8 @@ const setupFeeds = () => {
   asks.value = [];
   isLoading.value = true;
 
-  if (settings.assetMode === 'stocks') {
-    stockInput.value = settings.stockOrderBookSymbol;
+  if (currentAssetMode.value === 'stocks') {
+    symbolInput.value = activeSymbol.value;
     if (settings.finnhubApiKey) {
       fetchStockQuote();
       pollInterval = setInterval(fetchStockQuote, 20000);
@@ -177,7 +214,7 @@ const cleanupFeeds = () => {
     clearInterval(simInterval);
     simInterval = null;
   }
-  if (settings.assetMode === 'crypto') {
+  if (currentAssetMode.value === 'crypto') {
     const stream = `${currentSymbol.value.toLowerCase()}@depth20@100ms`;
     wsManager.unsubscribe(stream, handleDepthMessage);
   }
@@ -192,7 +229,7 @@ onUnmounted(() => {
 });
 
 watch(
-  () => [settings.assetMode, currentSymbol.value, settings.finnhubApiKey],
+  () => [currentAssetMode.value, currentSymbol.value, settings.finnhubApiKey],
   () => {
     setupFeeds();
   }
@@ -209,17 +246,39 @@ const maxTotal = computed(() => {
   <div class="h-full w-full bg-panel border border-border flex flex-col font-mono text-[10px] select-none text-gray-300">
     <!-- Panel Header -->
     <div class="h-8 border-b border-border flex items-center justify-between px-3 bg-black">
-      <span class="text-[10px] text-accent-green uppercase font-bold tracking-wider">
-        ORDER DEPTH LADDER [{{ settings.assetMode.toUpperCase() }}]
-      </span>
+      <div class="flex items-center space-x-2">
+        <span class="text-[10px] text-accent-green uppercase font-bold tracking-wider mr-2">
+          ORDER DEPTH LADDER
+        </span>
+        <!-- Local Switcher -->
+        <div v-if="props.allowModeSwitch" class="flex items-center bg-surface border border-border rounded p-0.5 space-x-0.5 text-[8px] font-bold">
+          <button
+            @click="currentAssetMode = 'stocks'"
+            class="px-1.5 py-0.5 rounded transition-all select-none"
+            :class="currentAssetMode === 'stocks' ? 'bg-black text-accent-green border border-border shadow' : 'text-gray-500 hover:text-gray-300'"
+          >
+            STOCKS
+          </button>
+          <button
+            @click="currentAssetMode = 'crypto'"
+            class="px-1.5 py-0.5 rounded transition-all select-none"
+            :class="currentAssetMode === 'crypto' ? 'bg-black text-accent-green border border-border shadow' : 'text-gray-500 hover:text-gray-300'"
+          >
+            CRYPTO
+          </button>
+        </div>
+        <span v-else class="text-[8px] text-gray-500 font-bold uppercase tracking-wider">
+          [{{ currentAssetMode.toUpperCase() }}]
+        </span>
+      </div>
       <div class="flex items-center space-x-1.5 font-mono text-[9px] text-gray-500">
         <span class="font-bold text-gray-400">SYMBOL:</span>
         <input
-          v-if="settings.assetMode === 'stocks'"
-          v-model="stockInput"
-          @blur="updateStockSymbol"
-          @keydown.enter="updateStockSymbol"
-          class="bg-surface border border-border rounded px-1.5 py-0.5 text-white w-14 font-mono font-bold uppercase focus:border-accent-green focus:outline-none"
+          v-if="props.allowModeSwitch"
+          v-model="symbolInput"
+          @blur="updateSymbol"
+          @keydown.enter="updateSymbol"
+          class="bg-surface border border-border rounded px-1.5 py-0.5 text-white w-18 font-mono font-bold uppercase focus:border-accent-green focus:outline-none text-[9px]"
         />
         <span v-else class="font-bold text-white uppercase">{{ currentSymbol }}</span>
       </div>
@@ -229,7 +288,7 @@ const maxTotal = computed(() => {
     <div class="flex-1 flex flex-col relative overflow-hidden">
       <!-- Finnhub Key Warning -->
       <div
-        v-if="settings.assetMode === 'stocks' && !hasFinnhubKey"
+        v-if="currentAssetMode === 'stocks' && !hasFinnhubKey"
         class="absolute inset-0 bg-black/45 z-10 flex flex-col items-center justify-center p-4 text-center space-y-2 text-[10px] text-gray-500"
       >
         <span>FINNHUB API KEY REQUIRED FOR STOCK DEPTH</span>
@@ -238,7 +297,7 @@ const maxTotal = computed(() => {
 
       <!-- Loading state -->
       <div v-else-if="isLoading" class="absolute inset-0 bg-black/40 z-10 flex items-center justify-center text-gray-500">
-        {{ settings.assetMode === 'stocks' ? 'PREPARING BBO DEPTH...' : 'STREAMING ORDERBOOK...' }}
+        {{ currentAssetMode === 'stocks' ? 'PREPARING BBO DEPTH...' : 'STREAMING ORDERBOOK...' }}
       </div>
 
       <div v-else class="flex-1 flex flex-col overflow-y-auto px-1">
@@ -265,7 +324,7 @@ const maxTotal = computed(() => {
         <div class="h-6 border-y border-border bg-black flex items-center justify-between px-2 font-mono font-bold select-none py-1">
           <div class="flex items-center space-x-2">
             <span class="text-[9px] text-gray-500 font-semibold uppercase">
-              {{ settings.assetMode === 'stocks' ? 'SIM SPREAD:' : 'SPREAD:' }}
+              {{ currentAssetMode === 'stocks' ? 'SIM SPREAD:' : 'SPREAD:' }}
             </span>
             <span class="text-white">{{ spread.toFixed(2) }}</span>
           </div>

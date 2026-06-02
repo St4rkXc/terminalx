@@ -52,10 +52,13 @@ const closeContextMenu = () => {
   document.removeEventListener('click', closeContextMenu);
 };
 
+const emit = defineEmits<{
+  (e: 'open-create-modal'): void;
+}>();
+
 const handleCreateTab = () => {
   if (store.tabs.length >= 10) return;
-  // Create a new charts tab by default
-  store.createTab(`Workspace ${store.tabs.length}`, 'charts');
+  emit('open-create-modal');
 };
 </script>
 

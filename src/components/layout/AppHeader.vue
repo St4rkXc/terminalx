@@ -1,15 +1,11 @@
-<!-- src/components/layout/AppHeader.vue -->
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
 import { wsManager } from '../../composables/useWebSocketManager';
-import { useSettingsStore } from '../../stores/settings';
 import { Settings } from 'lucide-vue-next';
 
 defineEmits<{
   (e: 'toggle-settings'): void;
 }>();
-
-const settings = useSettingsStore();
 
 const timeString = ref('');
 let timer: any = null;
@@ -53,25 +49,6 @@ const wsStatus = wsManager.connectionStatus;
           }"
         ></span>
         <span class="uppercase tracking-wider mr-1">{{ wsStatus }}</span>
-      </div>
-      <div class="h-4 w-[1px] bg-border"></div>
-      
-      <!-- Stocks / Crypto Switcher -->
-      <div class="flex items-center bg-surface border border-border rounded p-0.5 space-x-0.5 text-[9px] font-mono font-bold">
-        <button
-          @click="settings.updateSettings({ assetMode: 'stocks' })"
-          class="px-2 py-0.5 rounded transition-all select-none"
-          :class="settings.assetMode === 'stocks' ? 'bg-black text-accent-green border border-border shadow' : 'text-gray-500 hover:text-gray-300'"
-        >
-          STOCKS
-        </button>
-        <button
-          @click="settings.updateSettings({ assetMode: 'crypto' })"
-          class="px-2 py-0.5 rounded transition-all select-none"
-          :class="settings.assetMode === 'crypto' ? 'bg-black text-accent-green border border-border shadow' : 'text-gray-500 hover:text-gray-300'"
-        >
-          CRYPTO
-        </button>
       </div>
     </div>
     

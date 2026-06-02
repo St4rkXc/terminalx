@@ -13,7 +13,7 @@ const props = defineProps<{
 const workspaceStore = useWorkspaceStore();
 
 const activeTab = computed(() => {
-  return workspaceStore.tabs.find((t) => t.id === props.tabId)!;
+  return workspaceStore.tabs.find((t) => t.id === props.tabId);
 });
 
 const panels = computed({
@@ -41,7 +41,7 @@ const gridRowsClass = computed(() => {
 </script>
 
 <template>
-  <div class="w-full h-[calc(100vh-76px)] bg-black p-1">
+  <div v-if="activeTab && activeTab.template === 'multi'" class="w-full h-[calc(100vh-76px)] bg-black p-1">
     <draggable
       v-model="panels"
       item-key="id"
@@ -56,7 +56,7 @@ const gridRowsClass = computed(() => {
       
       <template #footer>
         <div
-          v-if="panels.length < 8"
+          v-if="activeTab && activeTab.template === 'multi' && panels.length < 8"
           @click="workspaceStore.addPanel(props.tabId)"
           class="border border-dashed border-border bg-black/40 hover:bg-surface/50 hover:border-accent-green cursor-pointer flex flex-col items-center justify-center space-y-2 text-gray-500 hover:text-white transition-all duration-150 rounded"
         >

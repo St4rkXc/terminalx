@@ -11,15 +11,11 @@ export const useSettingsStore = defineStore('settings', {
     defaultInterval: '1h' as Interval,
     accentColor: '#00ff88',
     orderBookSymbol: 'BTCUSDT',
-    assetMode: 'stocks',
     stockOrderBookSymbol: 'AAPL',
   }),
   actions: {
     updateSettings(settings: Partial<SettingsState>) {
       Object.assign(this, settings);
-    },
-    toggleAssetMode() {
-      this.assetMode = this.assetMode === 'stocks' ? 'crypto' : 'stocks';
     },
   },
   persist: {
@@ -28,8 +24,6 @@ export const useSettingsStore = defineStore('settings', {
       'defaultInterval',
       'accentColor',
       'orderBookSymbol',
-      'assetMode',
-      'stockOrderBookSymbol'
     ]
   },
 });

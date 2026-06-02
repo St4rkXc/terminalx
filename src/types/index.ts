@@ -4,6 +4,8 @@ export type Interval = '1m' | '5m' | '15m' | '30m' | '1h' | '4h' | '1d' | '1w';
 export type ChartType = 'candlestick' | 'line' | 'bar' | 'area';
 export type Exchange = 'binance' | 'polygon';
 export type TabType = 'dashboard' | 'charts';
+export type WorkspaceTemplate = 'multi' | 'compare' | 'focused';
+export type AssetMode = 'stocks' | 'crypto';
 
 export interface Panel {
   id: string;
@@ -20,6 +22,8 @@ export interface Tab {
   id: string;
   name: string;
   type: TabType;
+  template: WorkspaceTemplate;
+  assetMode: AssetMode;
   panels: Panel[];
   createdAt: number;
   updatedAt: number;
@@ -39,8 +43,15 @@ export interface SettingsState {
   defaultInterval: Interval;
   accentColor: string;
   orderBookSymbol: string;
-  assetMode: 'stocks' | 'crypto';
   stockOrderBookSymbol: string;
+}
+
+export interface RecentTrade {
+  id: number;
+  price: number;
+  quantity: number;
+  side: 'buy' | 'sell';
+  time: number;
 }
 
 export interface OrderBookEntry {
@@ -114,8 +125,6 @@ export interface BinanceKlineEvent {
     q: string;  // Quote asset volume
   };
 }
-
-export type AssetMode = 'stocks' | 'crypto';
 
 export interface StockQuote {
   c: number;   // Current price

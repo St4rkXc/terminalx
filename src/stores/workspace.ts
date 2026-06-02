@@ -1,7 +1,5 @@
-// src/stores/workspace.ts
 import { defineStore } from 'pinia';
-import { Tab, Panel, Interval, ChartType, Exchange } from '../types';
-import { useSettingsStore } from './settings';
+import { Tab, Panel, Interval, ChartType, Exchange, WorkspaceTemplate, AssetMode } from '../types';
 
 export const useWorkspaceStore = defineStore('workspace', {
   state: () => {
@@ -9,6 +7,8 @@ export const useWorkspaceStore = defineStore('workspace', {
       id: 'dashboard',
       name: 'Dashboard',
       type: 'dashboard',
+      template: 'multi',
+      assetMode: 'stocks',
       panels: [],
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -18,6 +18,8 @@ export const useWorkspaceStore = defineStore('workspace', {
       id: 'workspace-1',
       name: 'Stock Workspace',
       type: 'charts',
+      template: 'multi',
+      assetMode: 'stocks',
       panels: [
         {
           id: 'panel-default',
@@ -40,33 +42,92 @@ export const useWorkspaceStore = defineStore('workspace', {
     };
   },
   actions: {
-    createTab(name: string, type: 'dashboard' | 'charts') {
+    checkAndMigrate() {
+      // Migrate legacy tabs missing template and assetMode fields
+      this.tabs = this.tabs.map((tab) => {
+        if (!tab.template) {
+          tab.template = 'multi';
+        }
+        if (!tab.assetMode) {
+          tab.assetMode = 'stocks';
+        }
+        return tab;
+      });
+    },
+    createTab(
+      name: string,
+      type: 'dashboard' | 'charts',
+      template: WorkspaceTemplate = 'multi',
+      assetMode: AssetMode = 'crypto'
+    ) {
       const id = crypto.randomUUID();
-      const settings = useSettingsStore();
-      const isStocks = settings.assetMode === 'stocks';
+      const isStocks = assetMode === 'stocks';
       const defaultSym = isStocks ? 'AAPL' : 'BTCUSDT';
       const defaultEx = isStocks ? 'polygon' : 'binance';
       const defaultInt = isStocks ? '1d' : '1h';
+
+      let panels: Panel[] = [];
+      if (type === 'charts') {
+        if (template === 'multi') {
+          panels = [
+            {
+              id: crypto.randomUUID(),
+              tabId: id,
+              symbol: defaultSym,
+              exchange: defaultEx as Exchange,
+              interval: defaultInt as Interval,
+              chartType: 'candlestick',
+              position: 0,
+              showVolume: true,
+            },
+          ];
+        } else if (template === 'compare') {
+          const secondSym = isStocks ? 'MSFT' : 'ETHUSDT';
+          panels = [
+            {
+              id: crypto.randomUUID(),
+              tabId: id,
+              symbol: defaultSym,
+              exchange: defaultEx as Exchange,
+              interval: defaultInt as Interval,
+              chartType: 'candlestick',
+              position: 0,
+              showVolume: true,
+            },
+            {
+              id: crypto.randomUUID(),
+              tabId: id,
+              symbol: secondSym,
+              exchange: defaultEx as Exchange,
+              interval: defaultInt as Interval,
+              chartType: 'candlestick',
+              position: 1,
+              showVolume: true,
+            },
+          ];
+        } else if (template === 'focused') {
+          panels = [
+            {
+              id: crypto.randomUUID(),
+              tabId: id,
+              symbol: defaultSym,
+              exchange: defaultEx as Exchange,
+              interval: defaultInt as Interval,
+              chartType: 'candlestick',
+              position: 0,
+              showVolume: true,
+            },
+          ];
+        }
+      }
 
       const newTab: Tab = {
         id,
         name,
         type,
-        panels:
-          type === 'charts'
-            ? [
-                {
-                  id: crypto.randomUUID(),
-                  tabId: id,
-                  symbol: defaultSym,
-                  exchange: defaultEx as Exchange,
-                  interval: defaultInt as Interval,
-                  chartType: 'candlestick',
-                  position: 0,
-                  showVolume: true,
-                },
-              ]
-            : [],
+        template,
+        assetMode,
+        panels,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
@@ -119,10 +180,14 @@ export const useWorkspaceStore = defineStore('workspace', {
     },
     addPanel(tabId: string) {
       const tab = this.tabs.find((t) => t.id === tabId);
-      if (!tab || tab.type !== 'charts' || tab.panels.length >= 8) return;
+      if (!tab || tab.type !== 'charts') return;
 
-      const settings = useSettingsStore();
-      const isStocks = settings.assetMode === 'stocks';
+      // Enforce panel count limit by template
+      if (tab.template === 'multi' && tab.panels.length >= 8) return;
+      if (tab.template === 'compare' && tab.panels.length >= 2) return;
+      if (tab.template === 'focused' && tab.panels.length >= 1) return;
+
+      const isStocks = tab.assetMode === 'stocks';
       const defaultSym = isStocks ? 'AAPL' : 'BTCUSDT';
       const defaultEx = isStocks ? 'polygon' : 'binance';
       const defaultInt = isStocks ? '1d' : '1h';

@@ -1,6 +1,6 @@
 <!-- src/components/charts/ChartPanel.vue -->
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
 import { useWorkspaceStore } from '../../stores/workspace';
 import { useSettingsStore } from '../../stores/settings';
 import { useLightweightChart } from '../../composables/useLightweightChart';
@@ -20,6 +20,9 @@ const props = defineProps<{
 
 const workspaceStore = useWorkspaceStore();
 const settingsStore = useSettingsStore();
+
+const tab = computed(() => workspaceStore.tabs.find((t) => t.id === props.tabId));
+const assetMode = computed(() => tab.value?.assetMode || 'crypto');
 
 // Find panel object from store
 const panel = ref(
@@ -146,7 +149,7 @@ const setupChartFeed = async () => {
   isUnsupportedSymbol.value = false;
 
   // Intercept missing API key in Stocks Mode
-  if (settingsStore.assetMode === 'stocks') {
+  if (assetMode.value === 'stocks') {
     if (!settingsStore.finnhubApiKey) {
       isKeyMissing.value = true;
       isLoading.value = false;
@@ -195,7 +198,7 @@ const setupChartFeed = async () => {
     // 5. Load historical data depending on Asset Mode
     let history: ChartBar[] = [];
     
-    if (settingsStore.assetMode === 'stocks') {
+    if (assetMode.value === 'stocks') {
       isWaitingForQueue.value = true;
       
       await polygonQueue.add(async () => {
@@ -264,7 +267,7 @@ const setupChartFeed = async () => {
     }
 
     // 6. Connect real-time updates
-    if (settingsStore.assetMode === 'stocks') {
+    if (assetMode.value === 'stocks') {
       const fetchStockTick = async () => {
         if (!settingsStore.finnhubApiKey) return;
         try {
@@ -317,7 +320,7 @@ const cleanupFeed = () => {
     clearInterval(stockIntervalTimer);
     stockIntervalTimer = null;
   }
-  if (settingsStore.assetMode === 'crypto') {
+  if (assetMode.value === 'crypto') {
     const streamName = `${panel.value.symbol.toLowerCase()}@kline_${panel.value.interval}`;
     wsManager.unsubscribe(streamName, handleWsMessage);
   }
@@ -347,7 +350,7 @@ watch(
     panel.value.interval,
     panel.value.chartType,
     panel.value.showVolume,
-    settingsStore.assetMode,
+    assetMode.value,
     settingsStore.finnhubApiKey
   ],
   () => {
@@ -477,8 +480,7 @@ watch(isFullscreen, () => {
         class="absolute inset-0 z-10 bg-black flex flex-col items-center justify-center space-y-2 text-gray-600 text-[10px]"
       >
         <div class="h-4 w-4 border-2 border-accent-green border-t-transparent rounded-full animate-spin"></div>
-        <span v-if="isWaitingForQueue" class="text-accent-orange animate-pulse">WAITING FOR API SLOT (5/MIN LIMIT)...</span>
-        <span v-else>BUFFERING STREAM...</span>
+        <span>BUFFERING STREAM...</span>
       </div>
 
       <!-- Error state -->

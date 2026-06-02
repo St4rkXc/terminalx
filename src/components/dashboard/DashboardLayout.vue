@@ -1,9 +1,11 @@
-<!-- src/components/dashboard/DashboardLayout.vue -->
 <script setup lang="ts">
 import MarketOverview from "./MarketOverview.vue";
 import OrderBook from "./OrderBook.vue";
 import NewsFeed from "./NewsFeed.vue";
 import EconomicCalendar from "./EconomicCalendar.vue";
+import { useSettingsStore } from "../../stores/settings";
+
+const settings = useSettingsStore();
 </script>
 
 <template>
@@ -11,7 +13,7 @@ import EconomicCalendar from "./EconomicCalendar.vue";
     <div class="grid grid-cols-1 md:grid-cols-2 h-full w-full gap-1">
       <!-- Top Row -->
       <MarketOverview />
-      <OrderBook />
+      <OrderBook :symbol="settings.orderBookSymbol" asset-mode="crypto" :allow-mode-switch="true" />
       <NewsFeed />
       <EconomicCalendar />
     </div>
