@@ -9,7 +9,7 @@ import DepthHeatmap from "../highcharts/DepthHeatmap.vue";
 import CumulativeVolumeDelta from "../highcharts/CumulativeVolumeDelta.vue";
 import VolumeProfile from "../highcharts/VolumeProfile.vue";
 import TradeScatterTape from "../highcharts/TradeScatterTape.vue";
-import LiquidationFeed from "../highcharts/LiquidationFeed.vue";
+import TradeSizeBreakdown from "../highcharts/TradeSizeBreakdown.vue";
 import BlockTradeTracker from "../highcharts/BlockTradeTracker.vue";
 import MarketSpeedMeter from "../highcharts/MarketSpeedMeter.vue";
 import VolatilityGauge from "../highcharts/VolatilityGauge.vue";
@@ -171,7 +171,7 @@ const updateSymbol = () => {
         <!-- Col 4: Feed & Velocity Stats (25% width) -->
         <div class="w-[25%] h-full flex flex-col gap-1 min-h-0">
           <div class="flex-[3] min-h-0">
-            <LiquidationFeed :symbol="activeSymbol" />
+            <TradeSizeBreakdown :symbol="activeSymbol" />
           </div>
           <div class="flex-[2] min-h-0">
             <BlockTradeTracker :symbol="activeSymbol" />
