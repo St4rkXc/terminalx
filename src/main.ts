@@ -1,0 +1,15 @@
+// src/main.ts
+import { createApp } from 'vue';
+import { createPinia } from 'pinia';
+import piniaPluginPersistedstate from 'pinia-plugin-persistedstate';
+import App from './App.vue';
+import './assets/index.css';
+
+const app = createApp(App);
+const pinia = createPinia();
+
+// Add localstorage persistence support to Pinia stores
+pinia.use(piniaPluginPersistedstate);
+
+app.use(pinia);
+app.mount('#app');
