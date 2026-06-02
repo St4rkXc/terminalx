@@ -19,6 +19,8 @@ interface BlockTrade {
 
 const blockTrades = ref<BlockTrade[]>([]);
 let currentSubscription: string | null = null;
+let tradeBuffer: BlockTrade[] = [];
+let syncTimer: any = null;
 
 // Threshold in USD/USDT for a trade to be considered a block trade
 const usdThreshold = computed(() => {
@@ -50,10 +52,26 @@ const handleTradeMessage = (data: any) => {
       id: data.t
     };
 
-    blockTrades.value.unshift(newTrade);
-    if (blockTrades.value.length > 25) {
-      blockTrades.value.pop();
+    tradeBuffer.unshift(newTrade);
+    if (tradeBuffer.length > 25) {
+      tradeBuffer.length = 25;
     }
+  }
+};
+
+const startSync = () => {
+  stopSync();
+  syncTimer = setInterval(() => {
+    if (tradeBuffer.length > 0) {
+      blockTrades.value = [...tradeBuffer];
+    }
+  }, 500); // Sync to UI every 500ms
+};
+
+const stopSync = () => {
+  if (syncTimer) {
+    clearInterval(syncTimer);
+    syncTimer = null;
   }
 };
 
@@ -65,9 +83,11 @@ const subscribeToWS = () => {
   const streamName = `${props.symbol.toLowerCase()}@trade`;
   currentSubscription = streamName;
   wsManager.subscribe(streamName, handleTradeMessage);
+  startSync();
 };
 
 const unsubscribeFromWS = () => {
+  stopSync();
   if (currentSubscription) {
     wsManager.unsubscribe(currentSubscription, handleTradeMessage);
     currentSubscription = null;
@@ -76,11 +96,13 @@ const unsubscribeFromWS = () => {
 
 watch(() => props.symbol, () => {
   blockTrades.value = [];
+  tradeBuffer = [];
   subscribeToWS();
 });
 
 watch(() => props.assetMode, () => {
   blockTrades.value = [];
+  tradeBuffer = [];
   if (props.assetMode === 'crypto') {
     subscribeToWS();
   } else {

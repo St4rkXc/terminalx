@@ -13,8 +13,9 @@ const chartRef = ref<HTMLElement | null>(null);
 let chart: Highcharts.Chart | null = null;
 let currentSubscription: string | null = null;
 
+let pointBuffer: any[] = [];
 let redrawTimer: any = null;
-const REDRAW_INTERVAL = 500; // Redraw chart every 500ms
+const REDRAW_INTERVAL = 500; // Update chart every 500ms
 
 const initChart = () => {
   if (!chartRef.value) return;
@@ -148,10 +149,10 @@ const handleTradeMessage = (data: any) => {
     q: data.q
   };
 
-  const series = chart.series[0];
-  const shift = series.data.length >= 100;
-  // Performance Fix: Do not redraw on every point
-  series.addPoint(pointOptions, false, shift);
+  pointBuffer.push(pointOptions);
+  if (pointBuffer.length > 100) {
+    pointBuffer.shift();
+  }
 };
 
 const subscribeToWS = () => {
@@ -163,10 +164,10 @@ const subscribeToWS = () => {
   currentSubscription = streamName;
   wsManager.subscribe(streamName, handleTradeMessage);
 
-  // Performance Fix: Redraw the chart periodically instead of on every tick
+  // Performance Fix: Update the chart periodically instead of on every tick
   redrawTimer = setInterval(() => {
-    if (chart) {
-      chart.redraw();
+    if (chart && chart.series[0] && pointBuffer.length > 0) {
+      chart.series[0].setData([...pointBuffer], true, false, false);
     }
   }, REDRAW_INTERVAL);
 };
@@ -183,6 +184,7 @@ const unsubscribeFromWS = () => {
 };
 
 const clearChartData = () => {
+  pointBuffer = [];
   if (chart && chart.series[0]) {
     chart.series[0].setData([]);
   }
