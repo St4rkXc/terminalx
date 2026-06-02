@@ -36,24 +36,16 @@ export const useWorkspaceStore = defineStore('workspace', {
       updatedAt: Date.now(),
     };
 
-    const defaultTestingTab: Tab = {
-      id: 'testing',
-      name: 'Highcharts Stock Demo',
-      type: 'testing',
-      template: 'multi',
-      assetMode: 'stocks',
-      panels: [],
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-
     return {
-      tabs: [defaultDashboardTab, defaultChartTab, defaultTestingTab] as Tab[],
+      tabs: [defaultDashboardTab, defaultChartTab] as Tab[],
       activeTabId: 'dashboard',
     };
   },
   actions: {
     checkAndMigrate() {
+      // Filter out any deprecated testing tabs from local storage
+      this.tabs = this.tabs.filter((tab) => tab.type !== 'testing');
+
       // Migrate legacy tabs missing template and assetMode fields
       this.tabs = this.tabs.map((tab) => {
         if (!tab.template) {
@@ -67,20 +59,6 @@ export const useWorkspaceStore = defineStore('workspace', {
         }
         return tab;
       });
-
-      // Ensure testing tab exists for demo
-      if (!this.tabs.some((t) => t.id === 'testing')) {
-        this.tabs.push({
-          id: 'testing',
-          name: 'Highcharts Stock Demo',
-          type: 'testing',
-          template: 'multi',
-          assetMode: 'stocks',
-          panels: [],
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        });
-      }
     },
     createTab(
       name: string,
