@@ -119,7 +119,7 @@ export const useWorkspaceStore = defineStore('workspace', {
               showVolume: true,
             },
           ];
-        } else if (template === 'focused') {
+        } else if (template === 'focused' || template === 'detailed') {
           panels = [
             {
               id: crypto.randomUUID(),
@@ -198,6 +198,7 @@ export const useWorkspaceStore = defineStore('workspace', {
       if (tab.template === 'multi' && tab.panels.length >= 8) return;
       if (tab.template === 'compare' && tab.panels.length >= 2) return;
       if (tab.template === 'focused' && tab.panels.length >= 1) return;
+      if (tab.template === 'detailed' && tab.panels.length >= 1) return;
 
       const defaultSym = 'BTCUSDT';
       const defaultInt = '1h';

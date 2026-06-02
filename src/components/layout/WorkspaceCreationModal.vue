@@ -1,7 +1,7 @@
 <!-- src/components/layout/WorkspaceCreationModal.vue -->
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { LayoutGrid, Columns2, Maximize2, X } from 'lucide-vue-next';
+import { LayoutGrid, Columns2, Maximize2, Activity, X } from 'lucide-vue-next';
 import { WorkspaceTemplate } from '../../types';
 
 const props = defineProps<{
@@ -26,7 +26,9 @@ watch(
         ? 'Multi Chart' 
         : selectedTemplate.value === 'compare' 
           ? 'Compare' 
-          : 'Focused';
+          : selectedTemplate.value === 'focused'
+            ? 'Focused'
+            : 'Detailed';
       workspaceName.value = `Crypto ${templateName} ${props.tabCount}`;
     }
   }
@@ -38,7 +40,9 @@ const updateDefaultName = () => {
     ? 'Multi' 
     : selectedTemplate.value === 'compare' 
       ? 'Compare' 
-      : 'Focused';
+      : selectedTemplate.value === 'focused'
+        ? 'Focused'
+        : 'Detailed';
   workspaceName.value = `Crypto ${templateName} ${props.tabCount}`;
 };
 
@@ -159,6 +163,30 @@ const handleClose = () => {
                   </div>
                   <div class="text-[9px] text-gray-500 leading-normal">
                     Single asset focus. Integrates 1 primary chart alongside real-time order ladder and raw trade feed.
+                  </div>
+                </div>
+              </div>
+
+              <!-- Detailed Support View -->
+              <div
+                @click="selectedTemplate = 'detailed'"
+                class="border rounded p-3 flex items-start space-x-3 cursor-pointer transition-all duration-150"
+                :class="selectedTemplate === 'detailed' 
+                  ? 'border-accent-green bg-accent-green/5 shadow-[0_0_12px_rgba(0,255,136,0.06)]' 
+                  : 'border-border bg-panel hover:border-gray-500 hover:bg-[#141414]'"
+              >
+                <div 
+                  class="p-2 rounded"
+                  :class="selectedTemplate === 'detailed' ? 'text-accent-green' : 'text-gray-500'"
+                >
+                  <Activity class="h-5 w-5" />
+                </div>
+                <div class="flex-1 space-y-0.5 text-left">
+                  <div class="text-[11px] font-bold" :class="selectedTemplate === 'detailed' ? 'text-white' : 'text-gray-300'">
+                    Detailed Analytical Desk (No Chart)
+                  </div>
+                  <div class="text-[9px] text-gray-500 leading-normal">
+                    Maximizes real estate for deep analytical data. Integrates 10 specialized widgets powered by live WebSockets without the main candle chart.
                   </div>
                 </div>
               </div>

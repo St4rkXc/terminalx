@@ -7,6 +7,7 @@ import DashboardLayout from './components/dashboard/DashboardLayout.vue';
 import ChartGrid from './components/charts/ChartGrid.vue';
 import CompareLayout from './components/charts/CompareLayout.vue';
 import FocusedLayout from './components/charts/FocusedLayout.vue';
+import DetailedLayout from './components/charts/DetailedLayout.vue';
 import SettingsDrawer from './components/ui/SettingsDrawer.vue';
 import WorkspaceCreationModal from './components/layout/WorkspaceCreationModal.vue';
 
@@ -40,6 +41,7 @@ const handleCreateTab = (payload: { name: string; template: any }) => {
           <ChartGrid v-else-if="tab.template === 'multi'" :tab-id="tab.id" />
           <CompareLayout v-else-if="tab.template === 'compare'" :tab-id="tab.id" />
           <FocusedLayout v-else-if="tab.template === 'focused'" :tab-id="tab.id" />
+          <DetailedLayout v-else-if="tab.template === 'detailed'" :tab-id="tab.id" />
         </div>
       </template>
     </main>

@@ -3,7 +3,7 @@
 export type Interval = '1m' | '5m' | '15m' | '30m' | '1h' | '4h' | '1d' | '1w';
 export type ChartType = 'candlestick' | 'line' | 'bar' | 'area';
 export type TabType = 'dashboard' | 'charts' | 'testing';
-export type WorkspaceTemplate = 'multi' | 'compare' | 'focused';
+export type WorkspaceTemplate = 'multi' | 'compare' | 'focused' | 'detailed';
 
 export interface Panel {
   id: string;
