@@ -233,7 +233,7 @@ const maxTotal = computed(() => {
         class="absolute inset-0 bg-black/45 z-10 flex flex-col items-center justify-center p-4 text-center space-y-2 text-[10px] text-gray-500"
       >
         <span>FINNHUB API KEY REQUIRED FOR STOCK DEPTH</span>
-        <span class="text-[8px] text-gray-600">Open Settings (gear icon top right) to input key</span>
+        <span class="text-[8px] text-gray-600">Please check your .env configuration</span>
       </div>
 
       <!-- Loading state -->

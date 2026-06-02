@@ -16,7 +16,7 @@
     "lucide-vue-next": "^0.344.0",
     "vuedraggable": "^4.1.0"
   },
-  "devDependencies": {
+  "devDependencies": {  
     "@vitejs/plugin-vue": "^5.0.4",
     "typescript": "5.2.2",
     "vite": "^5.1.4",

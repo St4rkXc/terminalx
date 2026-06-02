@@ -15,11 +15,6 @@ export const useSettingsStore = defineStore('settings', {
     stockOrderBookSymbol: 'AAPL',
   }),
   actions: {
-    saveKeys(keys: { finnhub: string; polygon: string; fmp: string }) {
-      this.finnhubApiKey = keys.finnhub;
-      this.polygonApiKey = keys.polygon;
-      this.fmpApiKey = keys.fmp;
-    },
     updateSettings(settings: Partial<SettingsState>) {
       Object.assign(this, settings);
     },
@@ -27,5 +22,14 @@ export const useSettingsStore = defineStore('settings', {
       this.assetMode = this.assetMode === 'stocks' ? 'crypto' : 'stocks';
     },
   },
-  persist: true,
+  persist: {
+    paths: [
+      'defaultSymbol',
+      'defaultInterval',
+      'accentColor',
+      'orderBookSymbol',
+      'assetMode',
+      'stockOrderBookSymbol'
+    ]
+  },
 });

@@ -11,6 +11,7 @@ import { candleSeriesOptions, volumeSeriesOptions } from '../../utils/chartTheme
 import { Maximize2, Minimize2, Settings as SettingsIcon, X, BarChart2 } from 'lucide-vue-next';
 import ChartConfig from './ChartConfig.vue';
 import { UTCTimestamp, CandlestickSeries, LineSeries, BarSeries, AreaSeries, HistogramSeries } from 'lightweight-charts';
+import { polygonQueue } from '../../utils/requestQueue';
 
 const props = defineProps<{
   panelId: string;
@@ -62,6 +63,19 @@ const getFinnhubResolution = (interval: string): string => {
   }
 };
 
+const getPolygonMultiplier = (interval: string): number => {
+  const match = interval.match(/^(\d+)/);
+  return match ? parseInt(match[1]) : 1;
+};
+
+const getPolygonTimespan = (interval: string): string => {
+  if (interval.endsWith('m')) return 'minute';
+  if (interval.endsWith('h')) return 'hour';
+  if (interval.endsWith('d')) return 'day';
+  if (interval.endsWith('w')) return 'week';
+  return 'day';
+};
+
 const getFromTimestamp = (resolution: string): number => {
   const now = Math.floor(Date.now() / 1000);
   switch (resolution) {
@@ -70,15 +84,18 @@ const getFromTimestamp = (resolution: string): number => {
     case '15': return now - 15 * 24 * 60 * 60;
     case '30': return now - 30 * 24 * 60 * 60;
     case '60': return now - 45 * 24 * 60 * 60;
-    case 'D': return now - 500 * 24 * 60 * 60;
+    case 'D': return now - 365 * 24 * 60 * 60;
     case 'W': return now - 5 * 365 * 24 * 60 * 60;
     default: return now - 365 * 24 * 60 * 60;
   }
 };
 
 const isLoading = ref(true);
+const isWaitingForQueue = ref(false);
 const isError = ref(false);
 const isKeyMissing = ref(false);
+const isPolygonKeyMissing = ref(false);
+const isTierRestricted = ref(false);
 const isUnsupportedSymbol = ref(false);
 const showConfig = ref(false);
 const isFullscreen = ref(false);
@@ -123,13 +140,23 @@ const setupChartFeed = async () => {
   isLoading.value = true;
   isError.value = false;
   isKeyMissing.value = false;
+  isPolygonKeyMissing.value = false;
+  isWaitingForQueue.value = false;
+  isTierRestricted.value = false;
   isUnsupportedSymbol.value = false;
 
   // Intercept missing API key in Stocks Mode
-  if (settingsStore.assetMode === 'stocks' && !settingsStore.finnhubApiKey) {
-    isKeyMissing.value = true;
-    isLoading.value = false;
-    return;
+  if (settingsStore.assetMode === 'stocks') {
+    if (!settingsStore.finnhubApiKey) {
+      isKeyMissing.value = true;
+      isLoading.value = false;
+      return;
+    }
+    if (!settingsStore.polygonApiKey) {
+      isPolygonKeyMissing.value = true;
+      isLoading.value = false;
+      return;
+    }
   }
 
   try {
@@ -169,29 +196,41 @@ const setupChartFeed = async () => {
     let history: ChartBar[] = [];
     
     if (settingsStore.assetMode === 'stocks') {
-      const resolution = getFinnhubResolution(panel.value.interval);
-      const from = getFromTimestamp(resolution);
-      const to = Math.floor(Date.now() / 1000);
-      const url = `https://finnhub.io/api/v1/stock/candle?symbol=${panel.value.symbol}&resolution=${resolution}&from=${from}&to=${to}&token=${settingsStore.finnhubApiKey}`;
-      const res = await fetchWithRetry(url);
-      const candleData = await res.json();
+      isWaitingForQueue.value = true;
       
-      if (candleData.s === 'ok') {
-        history = candleData.t.map((timestamp: number, index: number) => ({
-          time: timestamp as UTCTimestamp,
-          open: candleData.o[index],
-          high: candleData.h[index],
-          low: candleData.l[index],
-          close: candleData.c[index],
-          volume: candleData.v[index],
-        }));
-      } else if (candleData.s === 'no_data') {
-        isUnsupportedSymbol.value = true;
-        destroyChart();
+      await polygonQueue.add(async () => {
+        isWaitingForQueue.value = false;
+        const multiplier = getPolygonMultiplier(panel.value.interval);
+        const timespan = getPolygonTimespan(panel.value.interval);
+        const to = Math.floor(Date.now() / 1000) * 1000;
+        const resolution = getFinnhubResolution(panel.value.interval);
+        const from = getFromTimestamp(resolution) * 1000;
+        
+        const url = `https://api.polygon.io/v2/aggs/ticker/${panel.value.symbol}/range/${multiplier}/${timespan}/${from}/${to}?adjusted=true&sort=asc&apiKey=${settingsStore.polygonApiKey}`;
+        const res = await fetchWithRetry(url);
+        const data = await res.json();
+        
+        if (data.status === 'OK' && data.results && data.results.length > 0) {
+          history = data.results.map((r: any) => ({
+            time: (r.t / 1000) as UTCTimestamp,
+            open: r.o,
+            high: r.h,
+            low: r.l,
+            close: r.c,
+            volume: r.v,
+          }));
+        } else if (data.resultsCount === 0 || (data.status === 'OK' && (!data.results || data.results.length === 0))) {
+          isUnsupportedSymbol.value = true;
+          destroyChart();
+          isLoading.value = false;
+        } else {
+          throw new Error(`Polygon returned status: ${data.status}`);
+        }
+      });
+
+      if (isUnsupportedSymbol.value || !history.length) {
         isLoading.value = false;
         return;
-      } else {
-        throw new Error(`Finnhub returned status: ${candleData.s}`);
       }
     } else {
       // Crypto Mode
@@ -262,9 +301,13 @@ const setupChartFeed = async () => {
     }
 
     isLoading.value = false;
-  } catch (err) {
+  } catch (err: any) {
     console.error('[ChartPanel] Setup failed:', err);
-    isError.value = true;
+    if (err.message?.includes('status: 403')) {
+      isTierRestricted.value = true;
+    } else {
+      isError.value = true;
+    }
     isLoading.value = false;
   }
 };
@@ -398,7 +441,25 @@ watch(isFullscreen, () => {
         class="absolute inset-0 z-10 bg-black flex flex-col items-center justify-center p-4 text-center space-y-2 text-[10px] text-gray-500"
       >
         <span>FINNHUB API KEY REQUIRED FOR STOCK CHART</span>
-        <span class="text-[8px] text-gray-600">Open Settings (gear icon top right) to input key</span>
+        <span class="text-[8px] text-gray-600">Please check your .env configuration</span>
+      </div>
+
+      <!-- Polygon Key missing warning -->
+      <div
+        v-if="isPolygonKeyMissing"
+        class="absolute inset-0 z-10 bg-black flex flex-col items-center justify-center p-4 text-center space-y-2 text-[10px] text-gray-500"
+      >
+        <span>POLYGON API KEY REQUIRED FOR HISTORICAL DATA</span>
+        <span class="text-[8px] text-gray-600">Please check your .env configuration</span>
+      </div>
+
+      <!-- Tier restriction warning -->
+      <div
+        v-if="isTierRestricted"
+        class="absolute inset-0 z-10 bg-black flex flex-col items-center justify-center p-4 text-center space-y-2 text-[10px] text-accent-orange"
+      >
+        <span>FINNHUB TIER RESTRICTION (403)</span>
+        <span class="text-[8px] text-gray-600">Historical stock data for this symbol is likely restricted on your plan.</span>
       </div>
 
       <!-- Unsupported symbol warning -->
@@ -416,7 +477,8 @@ watch(isFullscreen, () => {
         class="absolute inset-0 z-10 bg-black flex flex-col items-center justify-center space-y-2 text-gray-600 text-[10px]"
       >
         <div class="h-4 w-4 border-2 border-accent-green border-t-transparent rounded-full animate-spin"></div>
-        <span>BUFFERING STREAM...</span>
+        <span v-if="isWaitingForQueue" class="text-accent-orange animate-pulse">WAITING FOR API SLOT (5/MIN LIMIT)...</span>
+        <span v-else>BUFFERING STREAM...</span>
       </div>
 
       <!-- Error state -->

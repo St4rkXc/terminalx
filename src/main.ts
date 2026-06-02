@@ -6,6 +6,12 @@ import App from './App.vue';
 import './assets/index.css';
 
 const app = createApp(App);
+
+// Explicitly enable devtools in development
+if (import.meta.env.DEV) {
+  app.config.devtools = true;
+}
+
 const pinia = createPinia();
 
 // Add localstorage persistence support to Pinia stores

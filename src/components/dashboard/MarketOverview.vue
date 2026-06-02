@@ -103,7 +103,7 @@ const fetchTickers = async () => {
 
 const setupTimer = () => {
   if (timer) clearInterval(timer);
-  // Poll faster for Crypto (5s) than Stocks (20s) to respect Finnhub rate limits
+  // Original polling rates: 20s for Stocks, 5s for Crypto
   const interval = settings.assetMode === 'stocks' ? 20000 : 5000;
   timer = setInterval(fetchTickers, interval);
 };
@@ -157,7 +157,7 @@ const formatVol = (volStr: string) => {
         class="absolute inset-0 bg-black/45 flex flex-col items-center justify-center p-4 text-center space-y-2 text-[10px] text-gray-500"
       >
         <span>FINNHUB API KEY REQUIRED FOR STOCK PRICES</span>
-        <span class="text-[8px] text-gray-600">Open Settings (gear icon top right) to input key</span>
+        <span class="text-[8px] text-gray-600">Please check your .env configuration</span>
       </div>
 
       <!-- Loading -->
