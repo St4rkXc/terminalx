@@ -18,8 +18,8 @@ onMounted(() => {
   workspaceStore.checkAndMigrate();
 });
 
-const handleCreateTab = (payload: { name: string; template: any; assetMode: any }) => {
-  workspaceStore.createTab(payload.name, 'charts', payload.template, payload.assetMode);
+const handleCreateTab = (payload: { name: string; template: any }) => {
+  workspaceStore.createTab(payload.name, 'charts', payload.template);
 };
 </script>
 

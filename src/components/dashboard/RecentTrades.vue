@@ -2,22 +2,15 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { wsManager } from '../../composables/useWebSocketManager';
-import { useSettingsStore } from '../../stores/settings';
-import { fetchWithRetry } from '../../utils/fetchRetry';
-import { AssetMode, RecentTrade } from '../../types';
+import { RecentTrade } from '../../types';
 
 const props = defineProps<{
   symbol: string;
-  assetMode: AssetMode;
+  assetMode?: string;
 }>();
 
-const settings = useSettingsStore();
 const trades = ref<RecentTrade[]>([]);
 const isLoading = ref(true);
-
-let pollInterval: any = null;
-let simInterval: any = null;
-const latestStockPrice = ref<number | null>(null);
 
 const handleTradeMessage = (data: any) => {
   if (!data || data.e !== 'trade') return;
@@ -37,73 +30,18 @@ const handleTradeMessage = (data: any) => {
   }
 };
 
-const fetchStockPrice = async () => {
-  if (!settings.finnhubApiKey) return;
-  try {
-    const url = `https://finnhub.io/api/v1/quote?symbol=${props.symbol}&token=${settings.finnhubApiKey}`;
-    const res = await fetchWithRetry(url);
-    const data = await res.json();
-    if (data.c) {
-      latestStockPrice.value = data.c;
-      isLoading.value = false;
-    }
-  } catch (err) {
-    console.error('[RecentTrades] Stock quote poll failed:', err);
-  }
-};
-
-const generateSimulatedTrade = () => {
-  const basePrice = latestStockPrice.value || 150;
-  // Jitter price slightly
-  const jitter = (Math.random() - 0.5) * (basePrice * 0.001);
-  const tradePrice = basePrice + jitter;
-  const quantity = Math.floor(Math.random() * 200) + 1;
-  const side = Math.random() > 0.5 ? ('buy' as const) : ('sell' as const);
-
-  const mockTrade: RecentTrade = {
-    id: Date.now() + Math.floor(Math.random() * 1000),
-    price: tradePrice,
-    quantity,
-    side,
-    time: Date.now(),
-  };
-
-  trades.value.unshift(mockTrade);
-  if (trades.value.length > 30) {
-    trades.value.pop();
-  }
-};
-
 const setupFeed = () => {
   cleanupFeed();
   trades.value = [];
   isLoading.value = true;
 
-  if (props.assetMode === 'stocks') {
-    fetchStockPrice();
-    // Poll stock price for updates
-    pollInterval = setInterval(fetchStockPrice, 20000);
-    // Generate synthetic trades at a high frequency
-    simInterval = setInterval(generateSimulatedTrade, 2000);
-  } else {
-    const stream = `${props.symbol.toLowerCase()}@trade`;
-    wsManager.subscribe(stream, handleTradeMessage);
-  }
+  const stream = `${props.symbol.toLowerCase()}@trade`;
+  wsManager.subscribe(stream, handleTradeMessage);
 };
 
 const cleanupFeed = () => {
-  if (pollInterval) {
-    clearInterval(pollInterval);
-    pollInterval = null;
-  }
-  if (simInterval) {
-    clearInterval(simInterval);
-    simInterval = null;
-  }
-  if (props.assetMode === 'crypto') {
-    const stream = `${props.symbol.toLowerCase()}@trade`;
-    wsManager.unsubscribe(stream, handleTradeMessage);
-  }
+  const stream = `${props.symbol.toLowerCase()}@trade`;
+  wsManager.unsubscribe(stream, handleTradeMessage);
 };
 
 onMounted(() => {
@@ -115,7 +53,7 @@ onUnmounted(() => {
 });
 
 watch(
-  () => [props.symbol, props.assetMode, settings.finnhubApiKey],
+  () => props.symbol,
   () => {
     setupFeed();
   }
@@ -139,18 +77,12 @@ const formatTime = (timestamp: number) => {
       <span class="text-[10px] text-accent-green uppercase font-bold tracking-wider">
         LIVE ACTIVITY FEED
       </span>
-      <span
-        v-if="props.assetMode === 'stocks'"
-        class="text-[8px] bg-surface text-accent-orange border border-border px-1 rounded font-bold uppercase tracking-wider"
-      >
-        SIMULATED
-      </span>
     </div>
 
     <!-- Feed Content -->
     <div class="flex-1 flex flex-col relative overflow-hidden">
       <div v-if="isLoading" class="absolute inset-0 bg-black/40 z-10 flex items-center justify-center text-gray-500">
-        {{ props.assetMode === 'stocks' ? 'CONNECTING QUOTE FEED...' : 'WAITING FOR TRADES...' }}
+        WAITING FOR TRADES...
       </div>
 
       <div v-else class="flex-1 flex flex-col overflow-hidden">

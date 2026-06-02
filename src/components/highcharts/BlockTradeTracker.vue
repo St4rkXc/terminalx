@@ -5,7 +5,7 @@ import { wsManager } from '../../composables/useWebSocketManager';
 
 const props = defineProps<{
   symbol: string;
-  assetMode: 'crypto' | 'stocks';
+  assetMode?: string;
 }>();
 
 interface BlockTrade {
@@ -36,8 +36,6 @@ const formatTime = (timestamp: number) => {
 };
 
 const handleTradeMessage = (data: any) => {
-  if (props.assetMode !== 'crypto') return;
-
   const price = parseFloat(data.p);
   const qty = parseFloat(data.q);
   const usdValue = price * qty;
@@ -78,8 +76,6 @@ const stopSync = () => {
 const subscribeToWS = () => {
   unsubscribeFromWS();
 
-  if (props.assetMode !== 'crypto') return;
-
   const streamName = `${props.symbol.toLowerCase()}@trade`;
   currentSubscription = streamName;
   wsManager.subscribe(streamName, handleTradeMessage);
@@ -100,16 +96,6 @@ watch(() => props.symbol, () => {
   subscribeToWS();
 });
 
-watch(() => props.assetMode, () => {
-  blockTrades.value = [];
-  tradeBuffer = [];
-  if (props.assetMode === 'crypto') {
-    subscribeToWS();
-  } else {
-    unsubscribeFromWS();
-  }
-});
-
 onMounted(() => {
   subscribeToWS();
 });
@@ -127,10 +113,7 @@ onUnmounted(() => {
     </div>
     
     <div class="flex-1 overflow-y-auto scrollbar-thin text-[#cccccc]">
-      <div v-if="props.assetMode !== 'crypto'" class="h-full flex items-center justify-center text-center text-gray-500 text-[9px] px-2">
-        CRYPTO ONLY FEED
-      </div>
-      <div v-else-if="blockTrades.length === 0" class="h-full flex items-center justify-center text-center text-gray-500 text-[9px]">
+      <div v-if="blockTrades.length === 0" class="h-full flex items-center justify-center text-center text-gray-500 text-[9px]">
         WAITING FOR LARGE TRADES...
       </div>
       <table v-else class="w-full text-left">

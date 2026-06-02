@@ -29,16 +29,11 @@ const activeSymbol = computed(() => {
   return panels.value[0]?.symbol || 'BTCUSDT';
 });
 
-const assetMode = computed(() => {
-  return activeTab.value?.assetMode || 'crypto';
-});
-
 // Function to handle symbol selection
 const selectSymbol = (sym: string) => {
   if (panels.value.length > 0) {
     workspaceStore.updatePanel(props.tabId, panels.value[0].id, {
       symbol: sym,
-      exchange: assetMode.value === 'stocks' ? 'polygon' : 'binance',
     });
   }
 };
@@ -69,8 +64,8 @@ const selectSymbol = (sym: string) => {
           </span>
         </div>
         
-        <!-- Symbol Quick Buttons (Show only for crypto mode) -->
-        <div v-if="assetMode === 'crypto'" class="flex items-center gap-1">
+        <!-- Symbol Quick Buttons -->
+        <div class="flex items-center gap-1">
           <span class="text-gray-500 mr-2 uppercase text-[8px] tracking-wide">quick keys:</span>
           <button 
             v-for="sym in ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'DOGEUSDT', 'XRPUSDT']"
@@ -82,14 +77,11 @@ const selectSymbol = (sym: string) => {
             {{ sym.replace('USDT', '') }}
           </button>
         </div>
-        <div v-else class="flex items-center gap-1">
-          <span class="text-gray-500 mr-2 uppercase text-[8px] tracking-wide">STOCK WORKSPACE</span>
-        </div>
 
         <div class="flex items-center gap-2">
           <span class="inline-block w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
           <span class="text-green-500 uppercase font-bold text-[8px] tracking-wide">
-            {{ assetMode === 'crypto' ? 'WEBSOCKET ONLINE' : 'STOCK FEED LIVE' }}
+            WEBSOCKET ONLINE
           </span>
         </div>
       </div>
@@ -100,7 +92,6 @@ const selectSymbol = (sym: string) => {
         <div class="w-[25%] h-full min-h-0 flex flex-col border border-[#222222] rounded overflow-hidden">
           <OrderBook 
             :symbol="activeSymbol" 
-            :asset-mode="assetMode" 
             :allow-mode-switch="false" 
             class="h-full w-full"
           />
@@ -119,7 +110,6 @@ const selectSymbol = (sym: string) => {
           <div class="flex-[2] min-h-0">
             <CumulativeVolumeDelta 
               :symbol="activeSymbol" 
-              :asset-mode="assetMode" 
             />
           </div>
         </div>
@@ -130,14 +120,12 @@ const selectSymbol = (sym: string) => {
           <div class="flex-[4] min-h-0">
             <TradeScatterTape 
               :symbol="activeSymbol" 
-              :asset-mode="assetMode" 
             />
           </div>
           <!-- Middle Right: Market Speed Spline Chart -->
           <div class="flex-[3] min-h-0">
             <MarketSpeedMeter 
               :symbol="activeSymbol" 
-              :asset-mode="assetMode" 
             />
           </div>
           <!-- Bottom Right Split Row: Order Flow Imbalance and Block Trades -->
@@ -145,13 +133,11 @@ const selectSymbol = (sym: string) => {
             <div class="w-1/2 h-full">
               <OrderFlowImbalance 
                 :symbol="activeSymbol" 
-                :asset-mode="assetMode" 
               />
             </div>
             <div class="w-1/2 h-full">
               <BlockTradeTracker 
                 :symbol="activeSymbol" 
-                :asset-mode="assetMode" 
               />
             </div>
           </div>

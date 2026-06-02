@@ -1,8 +1,8 @@
 <!-- src/components/layout/WorkspaceCreationModal.vue -->
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { LayoutGrid, Columns2, Maximize2, Coins, ArrowUpRight, X } from 'lucide-vue-next';
-import { WorkspaceTemplate, AssetMode } from '../../types';
+import { LayoutGrid, Columns2, Maximize2, X } from 'lucide-vue-next';
+import { WorkspaceTemplate } from '../../types';
 
 const props = defineProps<{
   show: boolean;
@@ -11,11 +11,10 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:show', value: boolean): void;
-  (e: 'create', payload: { name: string; template: WorkspaceTemplate; assetMode: AssetMode }): void;
+  (e: 'create', payload: { name: string; template: WorkspaceTemplate }): void;
 }>();
 
 const selectedTemplate = ref<WorkspaceTemplate>('multi');
-const selectedAssetMode = ref<AssetMode>('crypto');
 const workspaceName = ref('');
 
 // Auto-generate name when modal opens
@@ -28,8 +27,7 @@ watch(
         : selectedTemplate.value === 'compare' 
           ? 'Compare' 
           : 'Focused';
-      const assetLabel = selectedAssetMode.value === 'stocks' ? 'Stocks' : 'Crypto';
-      workspaceName.value = `${assetLabel} ${templateName} ${props.tabCount}`;
+      workspaceName.value = `Crypto ${templateName} ${props.tabCount}`;
     }
   }
 );
@@ -41,11 +39,10 @@ const updateDefaultName = () => {
     : selectedTemplate.value === 'compare' 
       ? 'Compare' 
       : 'Focused';
-  const assetLabel = selectedAssetMode.value === 'stocks' ? 'Stocks' : 'Crypto';
-  workspaceName.value = `${assetLabel} ${templateName} ${props.tabCount}`;
+  workspaceName.value = `Crypto ${templateName} ${props.tabCount}`;
 };
 
-watch([selectedTemplate, selectedAssetMode], () => {
+watch(selectedTemplate, () => {
   updateDefaultName();
 });
 
@@ -55,7 +52,6 @@ const handleCreate = () => {
   emit('create', {
     name,
     template: selectedTemplate.value,
-    assetMode: selectedAssetMode.value,
   });
   emit('update:show', false);
 };
@@ -169,41 +165,10 @@ const handleClose = () => {
             </div>
           </div>
 
-          <!-- Asset Type Mode Selection -->
-          <div class="space-y-2">
-            <label class="text-[10px] text-gray-500 font-bold uppercase tracking-wider block">
-              2. Select Ticker Asset Class
-            </label>
-            <div class="flex space-x-2">
-              <button
-                type="button"
-                @click="selectedAssetMode = 'stocks'"
-                class="flex-1 border rounded py-2 px-4 transition-all duration-150 flex items-center justify-center space-x-2 text-[10px] font-bold"
-                :class="selectedAssetMode === 'stocks'
-                  ? 'border-accent-green bg-accent-green/5 text-white'
-                  : 'border-border bg-panel text-gray-500 hover:text-gray-300 hover:border-gray-600'"
-              >
-                <ArrowUpRight class="h-3.5 w-3.5" />
-                <span>STOCKS (FINNHUB / POLYGON)</span>
-              </button>
-              <button
-                type="button"
-                @click="selectedAssetMode = 'crypto'"
-                class="flex-1 border rounded py-2 px-4 transition-all duration-150 flex items-center justify-center space-x-2 text-[10px] font-bold"
-                :class="selectedAssetMode === 'crypto'
-                  ? 'border-accent-green bg-accent-green/5 text-white'
-                  : 'border-border bg-panel text-gray-500 hover:text-gray-300 hover:border-gray-600'"
-              >
-                <Coins class="h-3.5 w-3.5" />
-                <span>CRYPTO (BINANCE WEBSOCKETS)</span>
-              </button>
-            </div>
-          </div>
-
           <!-- Workspace Name -->
           <div class="space-y-2 text-left">
             <label class="text-[10px] text-gray-500 font-bold uppercase tracking-wider block">
-              3. Workspace Identifier / Name
+              2. Workspace Identifier / Name
             </label>
             <input
               v-model="workspaceName"

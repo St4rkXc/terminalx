@@ -5,7 +5,7 @@ import { wsManager } from '../../composables/useWebSocketManager';
 
 const props = defineProps<{
   symbol: string;
-  assetMode: 'crypto' | 'stocks';
+  assetMode?: string;
 }>();
 
 interface TradeRecord {
@@ -21,8 +21,6 @@ let tradeBuffer: TradeRecord[] = [];
 let syncTimer: any = null;
 
 const handleTradeMessage = (data: any) => {
-  if (props.assetMode !== 'crypto') return;
-
   const qty = parseFloat(data.q);
   const isSell = data.m; // true = sell, false = buy
 
@@ -79,7 +77,6 @@ const sellRatio = computed(() => {
 });
 
 const imbalancePercentage = computed(() => {
-  // Return a formatted string indicating which side dominates
   const buyPct = Math.round(buyRatio.value * 100);
   const sellPct = Math.round(sellRatio.value * 100);
   return { buyPct, sellPct };
@@ -102,8 +99,6 @@ const imbalanceStatusColor = computed(() => {
 const subscribeToWS = () => {
   unsubscribeFromWS();
 
-  if (props.assetMode !== 'crypto') return;
-
   const streamName = `${props.symbol.toLowerCase()}@trade`;
   currentSubscription = streamName;
   wsManager.subscribe(streamName, handleTradeMessage);
@@ -124,16 +119,6 @@ watch(() => props.symbol, () => {
   subscribeToWS();
 });
 
-watch(() => props.assetMode, () => {
-  recentTrades.value = [];
-  tradeBuffer = [];
-  if (props.assetMode === 'crypto') {
-    subscribeToWS();
-  } else {
-    unsubscribeFromWS();
-  }
-});
-
 onMounted(() => {
   subscribeToWS();
 });
@@ -150,10 +135,7 @@ onUnmounted(() => {
       <span>WINDOW: 200 TRADES</span>
     </div>
 
-    <div v-if="props.assetMode !== 'crypto'" class="flex-1 flex items-center justify-center text-center text-gray-500 text-[9px]">
-      CRYPTO ONLY FEED
-    </div>
-    <div v-else-if="recentTrades.length < 5" class="flex-1 flex items-center justify-center text-center text-gray-500 text-[9px]">
+    <div v-if="recentTrades.length < 5" class="flex-1 flex items-center justify-center text-center text-gray-500 text-[9px]">
       CALCULATING ORDER FLOW...
     </div>
     <div v-else class="flex-1 flex flex-col justify-around py-1">

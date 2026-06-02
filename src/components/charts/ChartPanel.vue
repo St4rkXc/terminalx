@@ -1,17 +1,15 @@
 <!-- src/components/charts/ChartPanel.vue -->
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue';
+import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useWorkspaceStore } from '../../stores/workspace';
 import { useSettingsStore } from '../../stores/settings';
 import { useLightweightChart } from '../../composables/useLightweightChart';
 import { fetchHistoricalKlines, ChartBar } from '../../composables/useBinanceKlines';
 import { wsManager } from '../../composables/useWebSocketManager';
-import { fetchWithRetry } from '../../utils/fetchRetry';
 import { candleSeriesOptions, volumeSeriesOptions } from '../../utils/chartTheme';
 import { Maximize2, Minimize2, Settings as SettingsIcon, X, BarChart2, GripVertical } from 'lucide-vue-next';
 import ChartConfig from './ChartConfig.vue';
 import { UTCTimestamp, CandlestickSeries, LineSeries, BarSeries, AreaSeries, HistogramSeries } from 'lightweight-charts';
-import { polygonQueue } from '../../utils/requestQueue';
 
 const props = withDefaults(defineProps<{
   panelId: string;
@@ -23,9 +21,6 @@ const props = withDefaults(defineProps<{
 
 const workspaceStore = useWorkspaceStore();
 const settingsStore = useSettingsStore();
-
-const tab = computed(() => workspaceStore.tabs.find((t) => t.id === props.tabId));
-const assetMode = computed(() => tab.value?.assetMode || 'crypto');
 
 // Find panel object from store
 const panel = ref(
@@ -53,59 +48,12 @@ const { initChart, destroyChart, chartInstance } = useLightweightChart();
 
 let mainSeries: any = null;
 let volumeSeries: any = null;
-let stockIntervalTimer: any = null;
 let activeToken: symbol | null = null;
 let currentStreamName: string | null = null;
 let pendingSetup = false;
 
-const getFinnhubResolution = (interval: string): string => {
-  switch (interval) {
-    case '1m': return '1';
-    case '5m': return '5';
-    case '15m': return '15';
-    case '30m': return '30';
-    case '1h': return '60';
-    case '4h': return 'D';
-    case '1d': return 'D';
-    case '1w': return 'W';
-    default: return 'D';
-  }
-};
-
-const getPolygonMultiplier = (interval: string): number => {
-  const match = interval.match(/^(\d+)/);
-  return match ? parseInt(match[1]) : 1;
-};
-
-const getPolygonTimespan = (interval: string): string => {
-  if (interval.endsWith('m')) return 'minute';
-  if (interval.endsWith('h')) return 'hour';
-  if (interval.endsWith('d')) return 'day';
-  if (interval.endsWith('w')) return 'week';
-  return 'day';
-};
-
-const getFromTimestamp = (resolution: string): number => {
-  const now = Math.floor(Date.now() / 1000);
-  switch (resolution) {
-    case '1': return now - 2 * 24 * 60 * 60;
-    case '5': return now - 5 * 24 * 60 * 60;
-    case '15': return now - 15 * 24 * 60 * 60;
-    case '30': return now - 30 * 24 * 60 * 60;
-    case '60': return now - 45 * 24 * 60 * 60;
-    case 'D': return now - 365 * 24 * 60 * 60;
-    case 'W': return now - 5 * 365 * 24 * 60 * 60;
-    default: return now - 365 * 24 * 60 * 60;
-  }
-};
-
 const isLoading = ref(true);
-const isWaitingForQueue = ref(false);
 const isError = ref(false);
-const isKeyMissing = ref(false);
-const isPolygonKeyMissing = ref(false);
-const isTierRestricted = ref(false);
-const isUnsupportedSymbol = ref(false);
 const showConfig = ref(false);
 const isFullscreen = ref(false);
 const lastPrice = ref<number | null>(null);
@@ -162,25 +110,6 @@ const setupChartFeed = async () => {
 
   isLoading.value = true;
   isError.value = false;
-  isKeyMissing.value = false;
-  isPolygonKeyMissing.value = false;
-  isWaitingForQueue.value = false;
-  isTierRestricted.value = false;
-  isUnsupportedSymbol.value = false;
-
-  // Intercept missing API key in Stocks Mode
-  if (assetMode.value === 'stocks') {
-    if (!settingsStore.finnhubApiKey) {
-      isKeyMissing.value = true;
-      isLoading.value = false;
-      return;
-    }
-    if (!settingsStore.polygonApiKey) {
-      isPolygonKeyMissing.value = true;
-      isLoading.value = false;
-      return;
-    }
-  }
 
   try {
     // 1. Init lightweight charts
@@ -217,57 +146,8 @@ const setupChartFeed = async () => {
 
     if (isStale()) return;
 
-    // 5. Load historical data depending on Asset Mode
-    let history: ChartBar[] = [];
-    
-    if (assetMode.value === 'stocks') {
-      isWaitingForQueue.value = true;
-      
-      await polygonQueue.add(async () => {
-        if (isStale()) return;
-        isWaitingForQueue.value = false;
-        const multiplier = getPolygonMultiplier(panel.value.interval);
-        const timespan = getPolygonTimespan(panel.value.interval);
-        const to = Math.floor(Date.now() / 1000) * 1000;
-        const resolution = getFinnhubResolution(panel.value.interval);
-        const from = getFromTimestamp(resolution) * 1000;
-        
-        const url = `https://api.polygon.io/v2/aggs/ticker/${panel.value.symbol}/range/${multiplier}/${timespan}/${from}/${to}?adjusted=true&sort=asc&apiKey=${settingsStore.polygonApiKey}`;
-        const res = await fetchWithRetry(url);
-        if (isStale()) return;
-        const data = await res.json();
-        if (isStale()) return;
-        
-        if (data.status === 'OK' && data.results && data.results.length > 0) {
-          history = data.results.map((r: any) => ({
-            time: (r.t / 1000) as UTCTimestamp,
-            open: r.o,
-            high: r.h,
-            low: r.l,
-            close: r.c,
-            volume: r.v,
-          }));
-        } else if (data.resultsCount === 0 || (data.status === 'OK' && (!data.results || data.results.length === 0))) {
-          isUnsupportedSymbol.value = true;
-          destroyChart();
-          isLoading.value = false;
-        } else {
-          throw new Error(`Polygon returned status: ${data.status}`);
-        }
-      });
-
-      if (isStale()) return;
-
-      if (isUnsupportedSymbol.value || !history.length) {
-        isLoading.value = false;
-        return;
-      }
-    } else {
-      // Crypto Mode
-      history = await fetchHistoricalKlines(panel.value.symbol, panel.value.interval);
-      if (isStale()) return;
-    }
-
+    // 5. Load historical data (strictly Binance)
+    const history = await fetchHistoricalKlines(panel.value.symbol, panel.value.interval);
     if (isStale()) return;
     if (!mainSeries) return;
 
@@ -297,66 +177,22 @@ const setupChartFeed = async () => {
       priceChangePct.value = ((lastBar.close - prevClose.value) / prevClose.value) * 100;
     }
 
-    // 6. Connect real-time updates
-    if (assetMode.value === 'stocks') {
-      const fetchStockTick = async () => {
-        if (isStale()) return;
-        if (!settingsStore.finnhubApiKey) return;
-        try {
-          const url = `https://finnhub.io/api/v1/quote?symbol=${panel.value.symbol}&token=${settingsStore.finnhubApiKey}`;
-          const tickRes = await fetchWithRetry(url);
-          if (isStale()) return;
-          const tickData = await tickRes.json();
-          if (isStale()) return;
-          if (tickData.c) {
-            const price = tickData.c;
-            lastPrice.value = price;
-            if (prevClose.value) {
-              priceChangePct.value = ((price - prevClose.value) / prevClose.value) * 100;
-            }
-            if (mainSeries && history.length > 0) {
-              const lastBar = history[history.length - 1];
-              mainSeries.update({
-                time: lastBar.time,
-                open: lastBar.open,
-                high: Math.max(lastBar.high, price),
-                low: Math.min(lastBar.low, price),
-                close: price,
-              });
-            }
-          }
-        } catch (err) {
-          console.warn('[ChartPanel] Stock tick poll failed:', err);
-        }
-      };
-      // Poll stock quote every 10 seconds for real-time tick updates
-      stockIntervalTimer = setInterval(fetchStockTick, 10000);
-    } else {
-      // Crypto WebSocket
-      const streamName = `${panel.value.symbol.toLowerCase()}@kline_${panel.value.interval}`;
-      currentStreamName = streamName;
-      wsManager.subscribe(streamName, handleWsMessage);
-    }
+    // 6. Connect real-time updates via Crypto WebSocket
+    const streamName = `${panel.value.symbol.toLowerCase()}@kline_${panel.value.interval}`;
+    currentStreamName = streamName;
+    wsManager.subscribe(streamName, handleWsMessage);
 
     isLoading.value = false;
   } catch (err: any) {
     if (isStale()) return;
     console.error('[ChartPanel] Setup failed:', err);
-    if (err.message?.includes('status: 403')) {
-      isTierRestricted.value = true;
-    } else {
-      isError.value = true;
-    }
+    isError.value = true;
     isLoading.value = false;
   }
 };
 
 const cleanupFeed = () => {
   activeToken = null;
-  if (stockIntervalTimer) {
-    clearInterval(stockIntervalTimer);
-    stockIntervalTimer = null;
-  }
   if (currentStreamName) {
     wsManager.unsubscribe(currentStreamName, handleWsMessage);
     currentStreamName = null;
@@ -387,8 +223,6 @@ watch(
     panel.value.interval,
     panel.value.chartType,
     panel.value.showVolume,
-    assetMode.value,
-    settingsStore.finnhubApiKey,
   ],
   () => {
     if (pendingSetup) return;
@@ -485,42 +319,6 @@ watch(isFullscreen, () => {
 
     <!-- Chart Canvas -->
     <div class="flex-1 w-full bg-black relative" ref="chartContainer">
-      <!-- Key missing warning -->
-      <div
-        v-if="isKeyMissing"
-        class="absolute inset-0 z-10 bg-black flex flex-col items-center justify-center p-4 text-center space-y-2 text-[10px] text-gray-500"
-      >
-        <span>FINNHUB API KEY REQUIRED FOR STOCK CHART</span>
-        <span class="text-[8px] text-gray-600">Please check your .env configuration</span>
-      </div>
-
-      <!-- Polygon Key missing warning -->
-      <div
-        v-if="isPolygonKeyMissing"
-        class="absolute inset-0 z-10 bg-black flex flex-col items-center justify-center p-4 text-center space-y-2 text-[10px] text-gray-500"
-      >
-        <span>POLYGON API KEY REQUIRED FOR HISTORICAL DATA</span>
-        <span class="text-[8px] text-gray-600">Please check your .env configuration</span>
-      </div>
-
-      <!-- Tier restriction warning -->
-      <div
-        v-if="isTierRestricted"
-        class="absolute inset-0 z-10 bg-black flex flex-col items-center justify-center p-4 text-center space-y-2 text-[10px] text-accent-orange"
-      >
-        <span>FINNHUB TIER RESTRICTION (403)</span>
-        <span class="text-[8px] text-gray-600">Historical stock data for this symbol is likely restricted on your plan.</span>
-      </div>
-
-      <!-- Unsupported symbol warning -->
-      <div
-        v-if="isUnsupportedSymbol"
-        class="absolute inset-0 z-10 bg-black flex flex-col items-center justify-center p-4 text-center space-y-2 text-[10px] text-accent-red"
-      >
-        <span>ASSET TICKER "{{ panel.symbol }}" NOT SUPPORTED OR NO DATA AVAILABLE</span>
-        <span class="text-[8px] text-gray-600">Click symbol name in header to search for stock tickers</span>
-      </div>
-
       <!-- Loading skeletal overlay -->
       <div
         v-if="isLoading"

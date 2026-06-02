@@ -6,7 +6,7 @@ import * as Highcharts from 'highcharts';
 
 const props = defineProps<{
   symbol: string;
-  assetMode: 'crypto' | 'stocks';
+  assetMode?: string;
 }>();
 
 const chartRef = ref<HTMLElement | null>(null);
@@ -123,7 +123,7 @@ const initChart = () => {
 };
 
 const handleTradeMessage = (data: any) => {
-  if (!chart || props.assetMode !== 'crypto') return;
+  if (!chart) return;
 
   const price = parseFloat(data.p);
   const qty = parseFloat(data.q);
@@ -157,8 +157,6 @@ const handleTradeMessage = (data: any) => {
 
 const subscribeToWS = () => {
   unsubscribeFromWS();
-
-  if (props.assetMode !== 'crypto') return;
 
   const streamName = `${props.symbol.toLowerCase()}@trade`;
   currentSubscription = streamName;
@@ -195,15 +193,6 @@ watch(() => props.symbol, () => {
   subscribeToWS();
 });
 
-watch(() => props.assetMode, () => {
-  clearChartData();
-  if (props.assetMode === 'crypto') {
-    subscribeToWS();
-  } else {
-    unsubscribeFromWS();
-  }
-});
-
 onMounted(() => {
   initChart();
   subscribeToWS();
@@ -220,13 +209,7 @@ onUnmounted(() => {
 
 <template>
   <div class="w-full h-full relative border border-[#222222] bg-[#000000] rounded">
-    <div v-show="props.assetMode === 'crypto'" ref="chartRef" class="w-full h-full"></div>
-    
-    <!-- Crypto only fallback overlay -->
-    <div v-if="props.assetMode !== 'crypto'" class="absolute inset-0 flex flex-col items-center justify-center bg-black/90 p-4 border border-[#333333] text-center z-10 font-mono">
-      <span class="text-amber-500 font-bold text-xs tracking-wider mb-2">CRYPTO ONLY SPECIFICATION</span>
-      <span class="text-[#888888] text-[9px]">REAL-TIME TRADE FLOW HISTOGRAM REQUIRES BINANCE WEBSOCKET FEED</span>
-    </div>
+    <div ref="chartRef" class="w-full h-full"></div>
   </div>
 </template>
 

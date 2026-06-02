@@ -138,7 +138,6 @@ const onSplitterResize = (deltaX: number) => {
         <OrderBook
           v-if="orderBookSymbol"
           :symbol="orderBookSymbol"
-          :asset-mode="activeTab.assetMode"
         />
         <div
           v-else

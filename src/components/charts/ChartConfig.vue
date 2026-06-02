@@ -24,13 +24,8 @@ const popularCrypto = [
   'NEARUSDT', 'OPUSDT', 'ARBUSDT', 'MATICUSDT'
 ];
 
-const popularStocks = [
-  'AAPL', 'MSFT', 'TSLA', 'NVDA', 'AMZN', 'GOOGL', 'META', 'NFLX', 'SPY', 'QQQ'
-];
-
 const popularSymbols = computed(() => {
-  const tab = store.tabs.find((t) => t.id === props.panel.tabId);
-  return tab?.assetMode === 'stocks' ? popularStocks : popularCrypto;
+  return popularCrypto;
 });
 
 const filteredSymbols = computed(() => {

@@ -1,7 +1,6 @@
 <!-- src/components/dashboard/MarketOverview.vue -->
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
-import { useSettingsStore } from '../../stores/settings';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { fetchWithRetry } from '../../utils/fetchRetry';
 import { TrendingUp, TrendingDown } from 'lucide-vue-next';
 
@@ -11,8 +10,6 @@ interface TickerData {
   priceChangePercent: string;
   volume: string;
 }
-
-const settings = useSettingsStore();
 
 const tickers = ref<TickerData[]>([]);
 const isLoading = ref(true);
@@ -32,105 +29,37 @@ const cryptoSymbols = [
   'LINKUSDT',
 ];
 
-const stockSymbols = [
-  'AAPL',
-  'MSFT',
-  'TSLA',
-  'NVDA',
-  'AMZN',
-  'GOOGL',
-  'META',
-  'NFLX',
-  'SPY',
-  'QQQ',
-];
-
-const localAssetMode = ref<'stocks' | 'crypto'>('stocks');
-
-const hasFinnhubKey = computed(() => !!settings.finnhubApiKey);
-
 const fetchTickers = async () => {
   isError.value = false;
-  
-  if (localAssetMode.value === 'stocks') {
-    if (!hasFinnhubKey.value) {
-      tickers.value = [];
-      isLoading.value = false;
-      return;
-    }
-    
-    try {
-      // Fetch each stock quote in parallel
-      const quotes = await Promise.all(
-        stockSymbols.map(async (symbol) => {
-          const url = `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${settings.finnhubApiKey}`;
-          const res = await fetchWithRetry(url);
-          const data = await res.json();
-          return {
-            symbol,
-            lastPrice: data.c ? data.c.toString() : '0',
-            priceChangePercent: data.dp ? data.dp.toString() : '0',
-            volume: '—', // Finnhub quote does not return volume on free tier
-          };
-        })
-      );
-      tickers.value = quotes;
-      isLoading.value = false;
-    } catch (err) {
-      console.error('[MarketOverview] Error loading stock quotes:', err);
-      isError.value = true;
-      isLoading.value = false;
-    }
-  } else {
-    // Crypto mode
-    try {
-      const symbolsParam = JSON.stringify(cryptoSymbols);
-      const url = `https://api.binance.com/api/v3/ticker/24hr?symbols=${symbolsParam}`;
-      const response = await fetchWithRetry(url);
-      const data = await response.json();
-      tickers.value = data.map((item: any) => ({
-        symbol: item.symbol,
-        lastPrice: item.lastPrice,
-        priceChangePercent: item.priceChangePercent,
-        volume: item.volume,
-      }));
-      isLoading.value = false;
-    } catch (err) {
-      console.error('[MarketOverview] Error loading crypto tickers:', err);
-      isError.value = true;
-      isLoading.value = false;
-    }
+  try {
+    const symbolsParam = JSON.stringify(cryptoSymbols);
+    const url = `https://api.binance.com/api/v3/ticker/24hr?symbols=${symbolsParam}`;
+    const response = await fetchWithRetry(url);
+    const data = await response.json();
+    tickers.value = data.map((item: any) => ({
+      symbol: item.symbol,
+      lastPrice: item.lastPrice,
+      priceChangePercent: item.priceChangePercent,
+      volume: item.volume,
+    }));
+    isLoading.value = false;
+  } catch (err) {
+    console.error('[MarketOverview] Error loading crypto tickers:', err);
+    isError.value = true;
+    isLoading.value = false;
   }
-};
-
-const setupTimer = () => {
-  if (timer) clearInterval(timer);
-  // Original polling rates: 20s for Stocks, 5s for Crypto
-  const interval = localAssetMode.value === 'stocks' ? 20000 : 5000;
-  timer = setInterval(fetchTickers, interval);
 };
 
 onMounted(() => {
   fetchTickers();
-  setupTimer();
+  timer = setInterval(fetchTickers, 5000);
 });
 
 onUnmounted(() => {
   if (timer) clearInterval(timer);
 });
 
-// Watch mode changes to immediately reload
-watch(
-  () => [localAssetMode.value, settings.finnhubApiKey],
-  () => {
-    isLoading.value = true;
-    fetchTickers();
-    setupTimer();
-  }
-);
-
 const formatVol = (volStr: string) => {
-  if (volStr === '—') return '—';
   const vol = parseFloat(volStr);
   if (isNaN(vol)) return '—';
   if (vol >= 1e9) return `${(vol / 1e9).toFixed(2)}B`;
@@ -143,46 +72,18 @@ const formatVol = (volStr: string) => {
   <div class="h-full w-full bg-panel border border-border flex flex-col font-mono text-xs select-none">
     <!-- Panel Header -->
     <div class="h-8 border-b border-border flex items-center justify-between px-3 bg-black">
-      <div class="flex items-center space-x-2">
-        <span class="text-[10px] text-accent-green uppercase font-bold tracking-wider mr-2">
-          MARKET MONITOR
-        </span>
-        <!-- Local Switcher -->
-        <div class="flex items-center bg-surface border border-border rounded p-0.5 space-x-0.5 text-[8px] font-bold">
-          <button
-            @click="localAssetMode = 'stocks'"
-            class="px-1.5 py-0.5 rounded transition-all select-none"
-            :class="localAssetMode === 'stocks' ? 'bg-black text-accent-green border border-border shadow' : 'text-gray-500 hover:text-gray-300'"
-          >
-            STOCKS
-          </button>
-          <button
-            @click="localAssetMode = 'crypto'"
-            class="px-1.5 py-0.5 rounded transition-all select-none"
-            :class="localAssetMode === 'crypto' ? 'bg-black text-accent-green border border-border shadow' : 'text-gray-500 hover:text-gray-300'"
-          >
-            CRYPTO
-          </button>
-        </div>
-      </div>
+      <span class="text-[10px] text-accent-green uppercase font-bold tracking-wider mr-2">
+        MARKET MONITOR (CRYPTO)
+      </span>
       <span class="text-[9px] text-gray-600">
-        POLL: {{ localAssetMode === 'stocks' ? '20s' : '5s' }}
+        POLL: 5s
       </span>
     </div>
 
     <!-- Panel Content -->
     <div class="flex-1 overflow-y-auto relative">
-      <!-- Finnhub Key Missing Warning in Stock Mode -->
-      <div
-        v-if="localAssetMode === 'stocks' && !hasFinnhubKey"
-        class="absolute inset-0 bg-black/45 flex flex-col items-center justify-center p-4 text-center space-y-2 text-[10px] text-gray-500"
-      >
-        <span>FINNHUB API KEY REQUIRED FOR STOCK PRICES</span>
-        <span class="text-[8px] text-gray-600">Please check your .env configuration</span>
-      </div>
-
       <!-- Loading -->
-      <div v-else-if="isLoading" class="absolute inset-0 bg-black/40 flex items-center justify-center text-gray-500 text-[10px]">
+      <div v-if="isLoading" class="absolute inset-0 bg-black/40 flex items-center justify-center text-gray-500 text-[10px]">
         LOADING MARKETS...
       </div>
 
@@ -212,13 +113,8 @@ const formatVol = (volStr: string) => {
           >
             <!-- Asset -->
             <td class="py-2 px-3 font-bold text-gray-300">
-              <template v-if="localAssetMode === 'crypto'">
-                {{ ticker.symbol.replace('USDT', '') }}
-                <span class="text-gray-600 text-[8px] font-medium">/USDT</span>
-              </template>
-              <template v-else>
-                {{ ticker.symbol }}
-              </template>
+              {{ ticker.symbol.replace('USDT', '') }}
+              <span class="text-gray-600 text-[8px] font-medium">/USDT</span>
             </td>
             
             <!-- Price -->

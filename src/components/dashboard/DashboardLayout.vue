@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import MarketOverview from "./MarketOverview.vue";
 import OrderBook from "./OrderBook.vue";
-import NewsFeed from "./NewsFeed.vue";
+import RecentTrades from "./RecentTrades.vue";
 import { useSettingsStore } from "../../stores/settings";
 
 const settings = useSettingsStore();
@@ -10,11 +10,10 @@ const settings = useSettingsStore();
 <template>
   <div class="w-full h-[calc(100vh-76px)] bg-black p-1">
     <div class="grid grid-cols-1 md:grid-cols-2 h-full w-full gap-1">
-      <!-- Top Row -->
       <MarketOverview />
-      <OrderBook :symbol="settings.orderBookSymbol" asset-mode="crypto" :allow-mode-switch="true" />
-      <NewsFeed />
-      <OrderBook :symbol="settings.stockOrderBookSymbol" asset-mode="stocks" :allow-mode-switch="true" />
+      <OrderBook :symbol="settings.orderBookSymbol" asset-mode="crypto" :allow-mode-switch="false" />
+      <RecentTrades :symbol="settings.orderBookSymbol" asset-mode="crypto" />
+      <OrderBook symbol="ETHUSDT" asset-mode="crypto" :allow-mode-switch="false" />
     </div>
   </div>
 </template>
@@ -27,3 +26,4 @@ const settings = useSettingsStore();
   }
 }
 </style>
+
