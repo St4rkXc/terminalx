@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { useWorkspaceStore } from "../../stores/workspace";
+import { useResizer } from "../../composables/useResizer";
 import { Plus } from "lucide-vue-next";
 import OrderBook from "../dashboard/OrderBook.vue";
 import OrderFlowImbalance from "../highcharts/OrderFlowImbalance.vue";
@@ -53,6 +54,36 @@ const updateSymbol = () => {
     selectSymbol(sym);
   }
 };
+
+// Column Resizing
+const { sizes: colSizes, startDrag: startColDrag } = useResizer({
+  initialSizes: [20, 25, 30, 25],
+  minSize: 10,
+});
+
+// Row Resizing for Column 1
+const { sizes: rowSizes1, startDrag: startRowDrag1 } = useResizer({
+  initialSizes: [45, 30, 25],
+  minSize: 10,
+});
+
+// Row Resizing for Column 2
+const { sizes: rowSizes2, startDrag: startRowDrag2 } = useResizer({
+  initialSizes: [50, 50],
+  minSize: 10,
+});
+
+// Row Resizing for Column 3
+const { sizes: rowSizes3, startDrag: startRowDrag3 } = useResizer({
+  initialSizes: [50, 50],
+  minSize: 10,
+});
+
+// Row Resizing for Column 4
+const { sizes: rowSizes4, startDrag: startRowDrag4 } = useResizer({
+  initialSizes: [30, 25, 25, 20],
+  minSize: 10,
+});
 </script>
 
 <template>
@@ -133,10 +164,16 @@ const updateSymbol = () => {
       </div>
 
       <!-- Main Bloomberg Grid Layout (4 Columns) -->
-      <div class="flex-1 min-h-0 w-full flex gap-1">
+      <div
+        class="flex-1 min-h-0 w-full grid"
+        :style="{ gridTemplateColumns: `${colSizes[0]}fr 4px ${colSizes[1]}fr 4px ${colSizes[2]}fr 4px ${colSizes[3]}fr` }"
+      >
         <!-- Col 1: Order Book & Imbalance (20% width) -->
-        <div class="w-[25%] h-full flex flex-col gap-1 min-h-0">
-          <div class="flex-[3] min-h-0">
+        <div
+          class="h-full grid min-h-0"
+          :style="{ gridTemplateRows: `${rowSizes1[0]}fr 4px ${rowSizes1[1]}fr 4px ${rowSizes1[2]}fr` }"
+        >
+          <div class="min-h-0">
             <OrderBook
               :symbol="activeSymbol"
               :allow-mode-switch="false"
@@ -144,49 +181,110 @@ const updateSymbol = () => {
               class="h-full w-full"
             />
           </div>
-          <div class="flex-[2] min-h-0">
-            <OrderFlowImbalance :symbol="activeSymbol" />
+          <!-- Horizontal Resizer 1.0 -->
+          <div
+            class="h-1 hover:bg-green-500 bg-[#111111] cursor-row-resize self-stretch transition-colors select-none z-10"
+            @mousedown="startRowDrag1(0, $event, 'vertical')"
+          ></div>
+          <div class="min-h-0">
+            <OrderFlowImbalance :symbol="activeSymbol" class="h-full w-full" />
           </div>
-          <div class="flex-[1.5] min-h-0">
-            <OpenInterestTracker :symbol="activeSymbol" />
+          <!-- Horizontal Resizer 1.1 -->
+          <div
+            class="h-1 hover:bg-green-500 bg-[#111111] cursor-row-resize self-stretch transition-colors select-none z-10"
+            @mousedown="startRowDrag1(1, $event, 'vertical')"
+          ></div>
+          <div class="min-h-0">
+            <OpenInterestTracker :symbol="activeSymbol" class="h-full w-full" />
           </div>
         </div>
+
+        <!-- Vertical Resizer 0 -->
+        <div
+          class="w-1 hover:bg-green-500 bg-[#111111] cursor-col-resize self-stretch transition-colors select-none z-10"
+          @mousedown="startColDrag(0, $event, 'horizontal')"
+        ></div>
 
         <!-- Col 2: Depth Heatmap & CVD (25% width) -->
-        <div class="w-[25%] h-full flex flex-col gap-1 min-h-0">
-          <div class="flex-1 min-h-0">
-            <DepthHeatmap :symbol="activeSymbol" />
+        <div
+          class="h-full grid min-h-0"
+          :style="{ gridTemplateRows: `${rowSizes2[0]}fr 4px ${rowSizes2[1]}fr` }"
+        >
+          <div class="min-h-0">
+            <DepthHeatmap :symbol="activeSymbol" class="h-full w-full" />
           </div>
-          <div class="flex-1 min-h-0">
-            <CumulativeVolumeDelta :symbol="activeSymbol" />
+          <!-- Horizontal Resizer 2.0 -->
+          <div
+            class="h-1 hover:bg-green-500 bg-[#111111] cursor-row-resize self-stretch transition-colors select-none z-10"
+            @mousedown="startRowDrag2(0, $event, 'vertical')"
+          ></div>
+          <div class="min-h-0">
+            <CumulativeVolumeDelta :symbol="activeSymbol" class="h-full w-full" />
           </div>
         </div>
+
+        <!-- Vertical Resizer 1 -->
+        <div
+          class="w-1 hover:bg-green-500 bg-[#111111] cursor-col-resize self-stretch transition-colors select-none z-10"
+          @mousedown="startColDrag(1, $event, 'horizontal')"
+        ></div>
 
         <!-- Col 3: Volume Profile & Scatter Tape (30% width) -->
-        <div class="w-[30%] h-full flex flex-col gap-1 min-h-0">
-          <div class="flex-1 min-h-0">
-            <VolumeProfile :symbol="activeSymbol" />
+        <div
+          class="h-full grid min-h-0"
+          :style="{ gridTemplateRows: `${rowSizes3[0]}fr 4px ${rowSizes3[1]}fr` }"
+        >
+          <div class="min-h-0">
+            <VolumeProfile :symbol="activeSymbol" class="h-full w-full" />
           </div>
-          <div class="flex-1 min-h-0">
-            <TradeScatterTape :symbol="activeSymbol" />
+          <!-- Horizontal Resizer 3.0 -->
+          <div
+            class="h-1 hover:bg-green-500 bg-[#111111] cursor-row-resize self-stretch transition-colors select-none z-10"
+            @mousedown="startRowDrag3(0, $event, 'vertical')"
+          ></div>
+          <div class="min-h-0">
+            <TradeScatterTape :symbol="activeSymbol" class="h-full w-full" />
           </div>
         </div>
 
+        <!-- Vertical Resizer 2 -->
+        <div
+          class="w-1 hover:bg-green-500 bg-[#111111] cursor-col-resize self-stretch transition-colors select-none z-10"
+          @mousedown="startColDrag(2, $event, 'horizontal')"
+        ></div>
+
         <!-- Col 4: Feed & Velocity Stats (25% width) -->
-        <div class="w-[25%] h-full flex flex-col gap-1 min-h-0">
-          <div class="flex-[3] min-h-0">
-            <TradeSizeBreakdown :symbol="activeSymbol" />
+        <div
+          class="h-full grid min-h-0"
+          :style="{ gridTemplateRows: `${rowSizes4[0]}fr 4px ${rowSizes4[1]}fr 4px ${rowSizes4[2]}fr 4px ${rowSizes4[3]}fr` }"
+        >
+          <div class="min-h-0">
+            <TradeSizeBreakdown :symbol="activeSymbol" class="h-full w-full" />
           </div>
-          <div class="flex-[2] min-h-0">
-            <BlockTradeTracker :symbol="activeSymbol" />
+          <!-- Horizontal Resizer 4.0 -->
+          <div
+            class="h-1 hover:bg-green-500 bg-[#111111] cursor-row-resize self-stretch transition-colors select-none z-10"
+            @mousedown="startRowDrag4(0, $event, 'vertical')"
+          ></div>
+          <div class="min-h-0">
+            <BlockTradeTracker :symbol="activeSymbol" class="h-full w-full" />
           </div>
-          <div class="flex-[2] min-h-0">
-            <MarketSpeedMeter :symbol="activeSymbol" />
+          <!-- Horizontal Resizer 4.1 -->
+          <div
+            class="h-1 hover:bg-green-500 bg-[#111111] cursor-row-resize self-stretch transition-colors select-none z-10"
+            @mousedown="startRowDrag4(1, $event, 'vertical')"
+          ></div>
+          <div class="min-h-0">
+            <MarketSpeedMeter :symbol="activeSymbol" class="h-full w-full" />
           </div>
-          <div class="flex-[1.5] min-h-0">
-            <VolatilityGauge :symbol="activeSymbol" />
+          <!-- Horizontal Resizer 4.2 -->
+          <div
+            class="h-1 hover:bg-green-500 bg-[#111111] cursor-row-resize self-stretch transition-colors select-none z-10"
+            @mousedown="startRowDrag4(2, $event, 'vertical')"
+          ></div>
+          <div class="min-h-0">
+            <VolatilityGauge :symbol="activeSymbol" class="h-full w-full" />
           </div>
-         
         </div>
       </div>
     </template>
