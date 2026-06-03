@@ -13,6 +13,7 @@ let chart: Highcharts.Chart | null = null;
 let currentSubscription: string | null = null;
 
 const priceHistory: number[] = [];
+let latestPrice: number | null = null;
 const volatilityScore = ref(0);
 let syncTimer: any = null;
 const isLoading = ref(true);
@@ -129,30 +130,33 @@ const initChart = () => {
 const handleTickerMessage = (data: any) => {
   if (!data || !data.c) return;
   isLoading.value = false;
-
-  const price = parseFloat(data.c);
-  priceHistory.push(price);
-  if (priceHistory.length > 20) {
-    priceHistory.shift();
-  }
-
-  if (priceHistory.length >= 5) {
-    const mean = priceHistory.reduce((sum, p) => sum + p, 0) / priceHistory.length;
-    const variance = priceHistory.reduce((sum, p) => sum + Math.pow(p - mean, 2), 0) / priceHistory.length;
-    const stdDev = Math.sqrt(variance);
-    const stdDevPct = (stdDev / mean) * 100;
-
-    // Map stdDevPct to 0-100 scale (0.1% standard deviation as 100)
-    const targetScore = Math.min(100, Math.max(0, (stdDevPct / 0.1) * 100));
-    // Apply smoothing
-    volatilityScore.value = volatilityScore.value * 0.7 + targetScore * 0.3;
-  }
+  latestPrice = parseFloat(data.c);
 };
 
 const startSync = () => {
   stopSync();
   syncTimer = setInterval(() => {
     if (!chart) return;
+
+    if (latestPrice !== null) {
+      priceHistory.push(latestPrice);
+      if (priceHistory.length > 20) {
+        priceHistory.shift();
+      }
+
+      if (priceHistory.length >= 5) {
+        const mean = priceHistory.reduce((sum, p) => sum + p, 0) / priceHistory.length;
+        const variance = priceHistory.reduce((sum, p) => sum + Math.pow(p - mean, 2), 0) / priceHistory.length;
+        const stdDev = Math.sqrt(variance);
+        const stdDevPct = (stdDev / mean) * 100;
+
+        // Map stdDevPct to 0-100 scale (0.1% standard deviation as 100)
+        const targetScore = Math.min(100, Math.max(0, (stdDevPct / 0.1) * 100));
+        // Apply smoothing
+        volatilityScore.value = volatilityScore.value * 0.7 + targetScore * 0.3;
+      }
+    }
+
     const timestamp = Date.now();
     const series = chart.series[0];
     const shift = series.data.length >= 60; // Keep last 60 points (60 seconds)
@@ -188,6 +192,7 @@ const unsubscribeFromWS = () => {
 watch(() => props.symbol, () => {
   priceHistory.length = 0;
   volatilityScore.value = 0;
+  latestPrice = null;
   if (chart) {
     chart.series[0].setData([]);
   }

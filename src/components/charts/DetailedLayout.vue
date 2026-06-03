@@ -13,6 +13,7 @@ import TradeSizeBreakdown from "../highcharts/TradeSizeBreakdown.vue";
 import BlockTradeTracker from "../highcharts/BlockTradeTracker.vue";
 import MarketSpeedMeter from "../highcharts/MarketSpeedMeter.vue";
 import VolatilityGauge from "../highcharts/VolatilityGauge.vue";
+import OpenInterestTracker from "../highcharts/OpenInterestTracker.vue";
 
 const props = defineProps<{
   tabId: string;
@@ -146,6 +147,9 @@ const updateSymbol = () => {
           <div class="flex-[2] min-h-0">
             <OrderFlowImbalance :symbol="activeSymbol" />
           </div>
+          <div class="flex-[1.5] min-h-0">
+            <OpenInterestTracker :symbol="activeSymbol" />
+          </div>
         </div>
 
         <!-- Col 2: Depth Heatmap & CVD (25% width) -->
@@ -179,9 +183,10 @@ const updateSymbol = () => {
           <div class="flex-[2] min-h-0">
             <MarketSpeedMeter :symbol="activeSymbol" />
           </div>
-          <div class="flex-[2] min-h-0">
+          <div class="flex-[1.5] min-h-0">
             <VolatilityGauge :symbol="activeSymbol" />
           </div>
+         
         </div>
       </div>
     </template>
