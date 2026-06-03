@@ -1,11 +1,21 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-@layer base {
-  body {
-    @apply bg-black text-white font-sans overflow-hidden select-none;
-  }
+@theme {
+  --color-background: #000000;
+  --color-panel: #0a0a0a;
+  --color-surface: #111111;
+  --color-border: #1a1a1a;
+  --color-accent-green: #00ff88;
+  --color-accent-red: #ff4444;
+  --color-accent-orange: #f59e0b;
+  --color-accent-blue: #3b82f6;
+
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-sans: Inter, sans-serif;
+}
+
+body {
+  @apply bg-black text-white font-sans overflow-hidden select-none;
 }
 
 /* Custom scrollbar for pure black terminal aesthetic */
