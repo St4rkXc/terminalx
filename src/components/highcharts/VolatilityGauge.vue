@@ -223,8 +223,8 @@ onUnmounted(() => {
     <div class="flex-1 flex items-center justify-between gap-2 min-h-0">
       <!-- Left: Circular Gauge -->
       <div class="flex flex-col items-center justify-center p-1 w-[35%] flex-shrink-0">
-        <div class="relative flex items-center justify-center" style="width: 128px; height: 128px; flex-shrink: 0;">
-          <svg viewBox="0 0 100 100" style="width: 128px; height: 128px; flex-shrink: 0;">
+        <div class="relative flex items-center justify-center" style="width: 96px; height: 96px; flex-shrink: 0;">
+          <svg viewBox="0 0 100 100" style="width: 96px; height: 96px; flex-shrink: 0;">
             <circle cx="50" cy="50" r="40" fill="none" stroke="#111111" stroke-width="8" />
             <circle 
               cx="50" 
