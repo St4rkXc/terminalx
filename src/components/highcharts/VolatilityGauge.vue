@@ -218,8 +218,8 @@ onUnmounted(() => {
     <div class="flex-1 flex items-center justify-between gap-2 min-h-0">
       <!-- Left: Circular Gauge -->
       <div class="flex flex-col items-center justify-center p-1 w-[35%] flex-shrink-0">
-        <div class="relative flex items-center justify-center" style="width: 64px; height: 64px; flex-shrink: 0;">
-          <svg viewBox="0 0 100 100" style="width: 64px; height: 64px; flex-shrink: 0;">
+        <div class="relative flex items-center justify-center" style="width: 128px; height: 128px; flex-shrink: 0;">
+          <svg viewBox="0 0 100 100" style="width: 128px; height: 128px; flex-shrink: 0;">
             <circle cx="50" cy="50" r="40" fill="none" stroke="#111111" stroke-width="8" />
             <circle 
               cx="50" 
@@ -236,8 +236,8 @@ onUnmounted(() => {
             />
           </svg>
           <div class="absolute inset-0 flex flex-col items-center justify-center leading-none">
-            <span class="text-[12px] font-bold text-white">{{ Math.round(volatilityScore) }}</span>
-            <span class="text-[5px] font-semibold mt-1 tracking-wider uppercase" :style="{ color: gaugeColor }">
+            <span class="text-[16px] font-bold text-white">{{ Math.round(volatilityScore) }}</span>
+            <span class="text-[10px] font-semibold mt-1 tracking-wider uppercase" :style="{ color: gaugeColor }">
               {{ labelText }}
             </span>
           </div>

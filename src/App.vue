@@ -39,8 +39,7 @@ const handleCreateTab = (payload: { name: string; template: any }) => {
   <!-- Mobile Block Overlay -->
   <div v-if="isMobile" class="fixed inset-0 z-[9999] bg-black flex items-center justify-center p-8 text-center">
     <div class="max-w-md">
-      <div class="text-4xl mb-6">📱</div>
-      <h1 class="text-2xl font-bold mb-4 text-white uppercase tracking-tight">Desktop Experience Only</h1>
+      <h1 class="text-2xl font-bold mb-4 text-green-500 uppercase tracking-tight">Desktop Experience Only</h1>
       <p class="text-gray-400 text-lg leading-relaxed">
         Currently Terminal X is not available for mobile. Please use your tablet or desktop for the full high-performance trading experience.
       </p>
