@@ -18,7 +18,8 @@ TerminalX is a high-performance, real-time financial market monitoring dashboard
 - **Framework:** Vue 3 (Composition API)
 - **State Management:** Pinia (with persistent state)
 - **Styling:** Tailwind CSS & Vanilla CSS
-- **Charts:** Lightweight Charts (TradingView)
+- **Charts:** Lightweight Charts (TradingView) & Highcharts
+- **Drag & Drop:** vuedraggable
 - **Data APIs:** Finnhub, Polygon.io, Financial Modeling Prep (FMP), and Binance.
 
 ## Setup & Configuration
