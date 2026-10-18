@@ -119,13 +119,13 @@ export const useWorkspaceStore = defineStore('workspace', {
               showVolume: true,
             },
           ];
-        } else if (template === 'focused' || template === 'detailed') {
+        } else if (template === 'focused' || template === 'detailed' || template === 'scalper') {
           panels = [
             {
               id: crypto.randomUUID(),
               tabId: id,
               symbol: defaultSym,
-              interval: defaultInt as Interval,
+              interval: (template === 'scalper' ? '1m' : defaultInt) as Interval,
               chartType: 'candlestick',
               position: 0,
               showVolume: true,
