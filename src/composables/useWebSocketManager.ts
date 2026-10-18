@@ -1,158 +1,167 @@
 // src/composables/useWebSocketManager.ts
-import { ref } from 'vue';
+import { ref } from "vue";
 
-type ConnectionStatus = 'online' | 'connecting' | 'offline';
+type ConnectionStatus = "online" | "connecting" | "offline";
 type MessageCallback = (data: any) => void;
 
 class WebSocketManager {
-  private ws: WebSocket | null = null;
-  private status = ref<ConnectionStatus>('offline');
-  private subscriptions = new Map<string, Set<MessageCallback>>();
-  private messageIdCounter = 1;
-  private reconnectTimeout: any = null;
-  private reconnectDelay = 1000;
-  private maxReconnectDelay = 30000;
-  private closeTimeout: any = null;
+	private ws: WebSocket | null = null;
+	private status = ref<ConnectionStatus>("offline");
+	private subscriptions = new Map<string, Set<MessageCallback>>();
+	private messageIdCounter = 1;
+	private reconnectTimeout: any = null;
+	private reconnectDelay = 1000;
+	private maxReconnectDelay = 30000;
+	private closeTimeout: any = null;
 
-  constructor() {
-    // Prevent multiple instances
-  }
+	constructor() {
+		// Prevent multiple instances
+	}
 
-  public get connectionStatus() {
-    return this.status;
-  }
+	public get connectionStatus() {
+		return this.status;
+	}
 
-  private connect() {
-    if (this.ws && (this.ws.readyState === WebSocket.CONNECTING || this.ws.readyState === WebSocket.OPEN)) {
-      return;
-    }
+	private connect() {
+		if (
+			this.ws &&
+			(this.ws.readyState === WebSocket.CONNECTING ||
+				this.ws.readyState === WebSocket.OPEN)
+		) {
+			return;
+		}
 
-    this.status.value = 'connecting';
-    // Use the combined streams endpoint
-    this.ws = new WebSocket('wss://stream.binance.com:9443/stream');
+		this.status.value = "connecting";
+		// Use the combined streams endpoint
+		this.ws = new WebSocket("wss://stream.binance.com:9443/stream");
 
-    this.ws.onopen = () => {
-      this.status.value = 'online';
-      this.reconnectDelay = 1000;
-      this.resubscribeAll();
-    };
+		this.ws.onopen = () => {
+			this.status.value = "online";
+			this.reconnectDelay = 1000;
+			this.resubscribeAll();
+		};
 
-    this.ws.onmessage = (event) => {
-      try {
-        const message = JSON.parse(event.data);
-        if (message.stream) {
-          const callbacks = this.subscriptions.get(message.stream.toLowerCase());
-          if (callbacks) {
-            callbacks.forEach((cb) => cb(message.data));
-          }
-        }
-      } catch (err) {
-        console.error('[WS Manager] Message parse error:', err);
-      }
-    };
+		this.ws.onmessage = (event) => {
+			try {
+				const message = JSON.parse(event.data);
+				if (message.stream) {
+					const callbacks = this.subscriptions.get(
+						message.stream.toLowerCase(),
+					);
+					if (callbacks) {
+						callbacks.forEach((cb) => cb(message.data));
+					}
+				}
+			} catch (err) {
+				console.error("[WS Manager] Message parse error:", err);
+			}
+		};
 
-    this.ws.onclose = () => {
-      this.status.value = 'offline';
-      this.ws = null;
-      this.scheduleReconnect();
-    };
+		this.ws.onclose = () => {
+			this.status.value = "offline";
+			this.ws = null;
+			this.scheduleReconnect();
+		};
 
-    this.ws.onerror = (err) => {
-      console.error('[WS Manager] Error:', err);
-      if (this.ws) {
-        this.ws.close();
-      }
-    };
-  }
+		this.ws.onerror = (err) => {
+			console.error("[WS Manager] Error:", err);
+			if (this.ws) {
+				this.ws.close();
+			}
+		};
+	}
 
-  private scheduleReconnect() {
-    if (this.reconnectTimeout) {
-      clearTimeout(this.reconnectTimeout);
-    }
-    this.reconnectTimeout = setTimeout(() => {
-      console.log('[WS Manager] Reconnecting...');
-      this.connect();
-      // Exponential backoff
-      this.reconnectDelay = Math.min(this.reconnectDelay * 2, this.maxReconnectDelay);
-    }, this.reconnectDelay);
-  }
+	private scheduleReconnect() {
+		if (this.reconnectTimeout) {
+			clearTimeout(this.reconnectTimeout);
+		}
+		this.reconnectTimeout = setTimeout(() => {
+			console.log("[WS Manager] Reconnecting...");
+			this.connect();
+			// Exponential backoff
+			this.reconnectDelay = Math.min(
+				this.reconnectDelay * 2,
+				this.maxReconnectDelay,
+			);
+		}, this.reconnectDelay);
+	}
 
-  private resubscribeAll() {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+	private resubscribeAll() {
+		if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 
-    const streams = Array.from(this.subscriptions.keys());
-    if (streams.length === 0) return;
+		const streams = Array.from(this.subscriptions.keys());
+		if (streams.length === 0) return;
 
-    const payload = {
-      method: 'SUBSCRIBE',
-      params: streams,
-      id: this.messageIdCounter++,
-    };
-    this.ws.send(JSON.stringify(payload));
-  }
+		const payload = {
+			method: "SUBSCRIBE",
+			params: streams,
+			id: this.messageIdCounter++,
+		};
+		this.ws.send(JSON.stringify(payload));
+	}
 
-  public subscribe(stream: string, callback: MessageCallback) {
-    const normalizedStream = stream.toLowerCase();
-    
-    if (this.closeTimeout) {
-      clearTimeout(this.closeTimeout);
-      this.closeTimeout = null;
-    }
-    
-    if (!this.subscriptions.has(normalizedStream)) {
-      this.subscriptions.set(normalizedStream, new Set());
-      
-      // If WS is already open, send SUBSCRIBE frame immediately
-      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-        const payload = {
-          method: 'SUBSCRIBE',
-          params: [normalizedStream],
-          id: this.messageIdCounter++,
-        };
-        this.ws.send(JSON.stringify(payload));
-      }
-    }
+	public subscribe(stream: string, callback: MessageCallback) {
+		const normalizedStream = stream.toLowerCase();
 
-    this.subscriptions.get(normalizedStream)!.add(callback);
+		if (this.closeTimeout) {
+			clearTimeout(this.closeTimeout);
+			this.closeTimeout = null;
+		}
 
-    // Bootstrap connection if not already running
-    if (!this.ws) {
-      this.connect();
-    }
-  }
+		if (!this.subscriptions.has(normalizedStream)) {
+			this.subscriptions.set(normalizedStream, new Set());
 
-  public unsubscribe(stream: string, callback: MessageCallback) {
-    const normalizedStream = stream.toLowerCase();
-    const callbacks = this.subscriptions.get(normalizedStream);
+			// If WS is already open, send SUBSCRIBE frame immediately
+			if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+				const payload = {
+					method: "SUBSCRIBE",
+					params: [normalizedStream],
+					id: this.messageIdCounter++,
+				};
+				this.ws.send(JSON.stringify(payload));
+			}
+		}
 
-    if (callbacks) {
-      callbacks.delete(callback);
-      if (callbacks.size === 0) {
-        this.subscriptions.delete(normalizedStream);
+		this.subscriptions.get(normalizedStream)!.add(callback);
 
-        // If WS is open, send UNSUBSCRIBE frame
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-          const payload = {
-            method: 'UNSUBSCRIBE',
-            params: [normalizedStream],
-            id: this.messageIdCounter++,
-          };
-          this.ws.send(JSON.stringify(payload));
-        }
-      }
-    }
+		// Bootstrap connection if not already running
+		if (!this.ws) {
+			this.connect();
+		}
+	}
 
-    // If no more subscriptions are active, optionally close socket with 5s delay to prevent connection thrashing
-    if (this.subscriptions.size === 0 && this.ws) {
-      if (this.closeTimeout) clearTimeout(this.closeTimeout);
-      this.closeTimeout = setTimeout(() => {
-        if (this.subscriptions.size === 0 && this.ws) {
-          console.log('[WS Manager] Closing idle connection');
-          this.ws.close();
-        }
-      }, 5000);
-    }
-  }
+	public unsubscribe(stream: string, callback: MessageCallback) {
+		const normalizedStream = stream.toLowerCase();
+		const callbacks = this.subscriptions.get(normalizedStream);
+
+		if (callbacks) {
+			callbacks.delete(callback);
+			if (callbacks.size === 0) {
+				this.subscriptions.delete(normalizedStream);
+
+				// If WS is open, send UNSUBSCRIBE frame
+				if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+					const payload = {
+						method: "UNSUBSCRIBE",
+						params: [normalizedStream],
+						id: this.messageIdCounter++,
+					};
+					this.ws.send(JSON.stringify(payload));
+				}
+			}
+		}
+
+		// If no more subscriptions are active, optionally close socket with 5s delay to prevent connection thrashing
+		if (this.subscriptions.size === 0 && this.ws) {
+			if (this.closeTimeout) clearTimeout(this.closeTimeout);
+			this.closeTimeout = setTimeout(() => {
+				if (this.subscriptions.size === 0 && this.ws) {
+					console.log("[WS Manager] Closing idle connection");
+					this.ws.close();
+				}
+			}, 5000);
+		}
+	}
 }
 
 // Export singleton instance
