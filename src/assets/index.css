@@ -1,60 +1,61 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: #000000;
-  --color-panel: #0a0a0a;
-  --color-surface: #111111;
-  --color-border: #1a1a1a;
-  --color-accent-green: #00ff88;
-  --color-accent-red: #ff4444;
-  --color-accent-orange: #f59e0b;
-  --color-accent-blue: #3b82f6;
+	--color-background: #000000;
+	--color-panel: #0a0a0a;
+	--color-surface: #111111;
+	--color-border: #1a1a1a;
+	--color-accent-green: #00ff88;
+	--color-accent-red: #ff4444;
+	--color-accent-orange: #f59e0b;
+	--color-accent-blue: #3b82f6;
 
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  --font-sans: Inter, sans-serif;
+	--font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco,
+		Consolas, monospace;
+	--font-sans: Inter, sans-serif;
 }
 
 body {
-  @apply bg-black text-white font-sans overflow-hidden select-none;
+	@apply bg-black text-white font-sans overflow-hidden select-none;
 }
 
 /* Custom scrollbar for pure black terminal aesthetic */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+	width: 5px;
+	height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #000000;
-  border-left: 1px solid #1a1a1a;
-  border-top: 1px solid #1a1a1a;
+	background: #000000;
+	border-left: 1px solid #1a1a1a;
+	border-top: 1px solid #1a1a1a;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1a1a1a;
-  border-radius: 2px;
+	background: #1a1a1a;
+	border-radius: 2px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #333333;
+	background: #333333;
 }
 
 /* Fade transition */
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.15s ease;
+	transition: opacity 0.15s ease;
 }
 
 .fade-enter-from,
 .fade-leave-to {
-  opacity: 0;
+	opacity: 0;
 }
 
 /* Hide scrollbars optionally */
 .no-scrollbar::-webkit-scrollbar {
-  display: none;
+	display: none;
 }
 .no-scrollbar {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+	-ms-overflow-style: none; /* IE and Edge */
+	scrollbar-width: none; /* Firefox */
 }
