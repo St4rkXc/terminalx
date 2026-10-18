@@ -11,4 +11,9 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  // @ts-ignore
+  test: {
+    environment: 'happy-dom',
+    globals: true,
+  },
 })
