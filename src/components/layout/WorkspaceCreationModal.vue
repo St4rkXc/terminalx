@@ -1,7 +1,7 @@
 <!-- src/components/layout/WorkspaceCreationModal.vue -->
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { LayoutGrid, Columns2, Maximize2, Activity, X } from 'lucide-vue-next';
+import { LayoutGrid, Columns2, Maximize2, Activity, Zap, X } from 'lucide-vue-next';
 import { WorkspaceTemplate } from '../../types';
 
 const props = defineProps<{
@@ -28,7 +28,9 @@ watch(
           ? 'Compare' 
           : selectedTemplate.value === 'focused'
             ? 'Focused'
-            : 'Detailed';
+            : selectedTemplate.value === 'scalper'
+              ? 'Scalper War Room'
+              : 'Detailed';
       workspaceName.value = `Crypto ${templateName} ${props.tabCount}`;
     }
   }
@@ -42,7 +44,9 @@ const updateDefaultName = () => {
       ? 'Compare' 
       : selectedTemplate.value === 'focused'
         ? 'Focused'
-        : 'Detailed';
+        : selectedTemplate.value === 'scalper'
+          ? 'Scalper'
+          : 'Detailed';
   workspaceName.value = `Crypto ${templateName} ${props.tabCount}`;
 };
 
@@ -187,6 +191,31 @@ const handleClose = () => {
                   </div>
                   <div class="text-[9px] text-gray-500 leading-normal">
                     Maximizes real estate for deep analytical data. Integrates 10 specialized widgets powered by live WebSockets without the main candle chart.
+                  </div>
+                </div>
+              </div>
+
+              <!-- Scalper War Room View -->
+              <div
+                @click="selectedTemplate = 'scalper'"
+                class="border rounded p-3 flex items-start space-x-3 cursor-pointer transition-all duration-150"
+                :class="selectedTemplate === 'scalper' 
+                  ? 'border-accent-green bg-accent-green/5 shadow-[0_0_12px_rgba(0,255,136,0.06)]' 
+                  : 'border-border bg-panel hover:border-gray-500 hover:bg-[#141414]'"
+              >
+                <div 
+                  class="p-2 rounded"
+                  :class="selectedTemplate === 'scalper' ? 'text-accent-green' : 'text-gray-500'"
+                >
+                  <Zap class="h-5 w-5" />
+                </div>
+                <div class="flex-1 space-y-0.5 text-left">
+                  <div class="text-[11px] font-bold flex items-center gap-1.5" :class="selectedTemplate === 'scalper' ? 'text-white' : 'text-gray-300'">
+                    <span>Scalper War Room (Futures Desk)</span>
+                    <span class="text-[8px] px-1 py-0.2 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded font-semibold uppercase">New</span>
+                  </div>
+                  <div class="text-[9px] text-gray-500 leading-normal">
+                    Designed for fast futures scalping. Integrates 1m candlestick chart, live Binance Futures liquidation tracker, DOM ladder, CVD, and instant risk sizing calculator.
                   </div>
                 </div>
               </div>
